@@ -14,26 +14,31 @@ import Wishlist from './pages/Wishlist';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
+import AdminDashboard from './pages/AdminDashboard';
+
 
 
 
 const AppRoutes = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
+
+    const isAdmin = user && (user.role === 'admin' || user.email === 'admin@valuexchange.com');
+    const redirectPath = isAdmin ? "/admin" : "/home";
 
     return (
         <Routes>
             {/* Public Routes */}
             <Route
                 path="/"
-                element={isAuthenticated ? <Navigate to="/home" /> : <LandingPage />}
+                element={isAuthenticated ? <Navigate to={redirectPath} /> : <LandingPage />}
             />
             <Route
                 path="/login"
-                element={isAuthenticated ? <Navigate to="/home" /> : <Login />}
+                element={isAuthenticated ? <Navigate to={redirectPath} /> : <Login />}
             />
             <Route
                 path="/register"
-                element={isAuthenticated ? <Navigate to="/home" /> : <Register />}
+                element={isAuthenticated ? <Navigate to={redirectPath} /> : <Register />}
             />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -61,6 +66,14 @@ const AppRoutes = () => {
                 element={
                     <ProtectedRoute>
                         <Profile />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute adminOnly={true}>
+                        <AdminDashboard />
                     </ProtectedRoute>
                 }
             />

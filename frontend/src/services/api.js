@@ -29,12 +29,13 @@ export const authAPI = {
 
 // Listings API
 export const listingsAPI = {
-    getAll: (params) => listingService.getAll(params?.category),
+    getAll: (params) => listingService.getAll(params?.category).then(data => ({ data })),
     getOne: (id) => listingService.getOne(id).then(data => ({ data })), // Component expects { data: ... }
     create: (listingData) => listingService.create(listingData, getCurrentUserId()).then(res => ({ data: res })),
     update: (id, listingData) => listingService.update(id, listingData).then(res => ({ data: res })),
     delete: (id) => listingService.delete(id).then(res => ({ data: res })),
-    getMyListings: () => listingService.getMyListings(getCurrentUserId()).then(data => ({ data }))
+    getMyListings: () => listingService.getMyListings(getCurrentUserId()).then(data => ({ data })),
+    checkConfig: !!import.meta.env.VITE_FIREBASE_API_KEY
 };
 
 // Bids API
@@ -44,6 +45,9 @@ export const bidsAPI = {
     create: (bidData) => bidService.create(bidData, getCurrentUserId()).then(res => ({ data: res })),
     updateStatus: (id, status) => bidService.updateStatus(id, status).then(res => ({ data: res }))
 };
+
+// Admin API
+
 
 const api = {
     authAPI,

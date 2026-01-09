@@ -45,7 +45,26 @@ export const listingService = {
                 q = query(listingsRef, where('category', '==', category), orderBy('createdAt', 'desc'));
             }
             const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Enrich with owner info
+            const listings = await Promise.all(snapshot.docs.map(async (listingDoc) => {
+                const data = listingDoc.data();
+                let ownerData = { username: 'Unknown User' };
+                if (data.owner) {
+                    const ownerRef = doc(db, 'users', data.owner);
+                    const ownerSnap = await getDoc(ownerRef);
+                    if (ownerSnap.exists()) {
+                        ownerData = ownerSnap.data();
+                    }
+                }
+                return {
+                    id: listingDoc.id,
+                    ...data,
+                    owner: { _id: data.owner, ...ownerData }
+                };
+            }));
+
+            return listings;
         } catch (error) {
             console.error("Error getting listings:", error);
             throw error;
@@ -99,14 +118,14 @@ export const listingService = {
     // Get User's Listings
     getMyListings: async (userId) => {
         try {
-            const q = query(listingsRef, where('owner', '==', userId), orderBy('createdAt', 'desc'));
+            const q = query(listingsRef, where('owner', '==', userId));
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (error) {
             console.error("Error getting my listings:", error);
             throw error;
         }
-    }
+    },
 };
 
 // Bids Service
@@ -127,10 +146,41 @@ export const bidService = {
         }
     },
 
+    // Get All Bids (Admin)
+    getAll: async () => {
+        try {
+            const q = query(bidsRef, orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
+
+            const bids = await Promise.all(snapshot.docs.map(async (bidDoc) => {
+                const data = bidDoc.data();
+                const listingRef = doc(db, 'listings', data.listing);
+                const listingSnap = await getDoc(listingRef);
+                const listingData = listingSnap.exists() ? listingSnap.data() : { title: 'Unknown Listing' };
+
+                const bidderRef = doc(db, 'users', data.bidder);
+                const bidderSnap = await getDoc(bidderRef);
+                const bidderData = bidderSnap.exists() ? bidderSnap.data() : { username: 'Unknown' };
+
+                return {
+                    id: bidDoc.id,
+                    ...data,
+                    listing: { _id: data.listing, ...listingData },
+                    bidder: { _id: data.bidder, ...bidderData }
+                };
+            }));
+
+            return bids;
+        } catch (error) {
+            console.error("Error getting all bids:", error);
+            throw error;
+        }
+    },
+
     // Get Bids for a Listing
     getForListing: async (listingId) => {
         try {
-            const q = query(bidsRef, where('listing', '==', listingId), orderBy('createdAt', 'desc'));
+            const q = query(bidsRef, where('listing', '==', listingId));
             const snapshot = await getDocs(q);
 
             // Enrich with bidder info
@@ -157,7 +207,7 @@ export const bidService = {
     // Get My Bids
     getMyBids: async (userId) => {
         try {
-            const q = query(bidsRef, where('bidder', '==', userId), orderBy('createdAt', 'desc'));
+            const q = query(bidsRef, where('bidder', '==', userId));
             const snapshot = await getDocs(q);
 
             // Enrich with listing info
@@ -265,6 +315,17 @@ export const userService = {
             return [];
         } catch (error) {
             console.error("Error getting wishlist:", error);
+            throw error;
+        }
+    },
+
+    getAll: async () => {
+        try {
+            const q = query(usersRef, orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            console.error("Error getting all users:", error);
             throw error;
         }
     }

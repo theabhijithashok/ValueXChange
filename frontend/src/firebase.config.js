@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,15 +17,21 @@ const app = initializeApp(firebaseConfig);
 // Initialize Services
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
 
-import { enableIndexedDbPersistence } from "firebase/firestore";
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code == 'failed-precondition') {
-        console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
-    } else if (err.code == 'unimplemented') {
-        console.warn("The current browser does not support all of the features required to enable persistence");
-    }
+// Use long polling to avoid "offline" errors in restricted networks
+export const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
 });
+
+// Persistence can cause "offline" errors during development if multiple tabs are open or config changes.
+// Disabling it temporarily to ensure stable connection.
+// import { enableIndexedDbPersistence } from "firebase/firestore";
+// enableIndexedDbPersistence(db).catch((err) => {
+//     if (err.code == 'failed-precondition') {
+//         console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
+//     } else if (err.code == 'unimplemented') {
+//         console.warn("The current browser does not support all of the features required to enable persistence");
+//     }
+// });
 
 export default app;

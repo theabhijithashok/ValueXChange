@@ -2,59 +2,61 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const ListingCard = ({ listing, onWishlistToggle, isInWishlist }) => {
-    const categoryColors = {
-        Goods: 'bg-blue-100 text-blue-800',
-        Services: 'bg-green-100 text-green-800',
-        Skills: 'bg-purple-100 text-purple-800',
-        Other: 'bg-gray-100 text-gray-800'
-    };
-
     return (
-        <div className="card overflow-hidden group">
-            <div className="aspect-video bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative overflow-hidden">
-                {listing.images && listing.images.length > 0 ? (
-                    <img
-                        src={listing.images[0]}
-                        alt={listing.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                ) : (
-                    <div className="text-6xl">📦</div>
-                )}
-                <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold ${categoryColors[listing.category]}`}>
-                    {listing.category}
-                </span>
+        <div className="bg-[#E5E5E5] border border-gray-400 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow relative">
+            {/* Image Container */}
+            <div className="h-48 w-full p-3 pb-0">
+                <div className="w-full h-full rounded-lg overflow-hidden border border-gray-300 bg-white flex items-center justify-center">
+                    {listing.images && listing.images.length > 0 ? (
+                        <img
+                            src={listing.images[0]}
+                            alt={listing.title}
+                            className="w-full h-full object-contain"
+                        />
+                    ) : (
+                        <div className="text-4xl">📦</div>
+                    )}
+                </div>
             </div>
 
-            <div className="p-5">
-                <h3 className="text-lg font-bold mb-2 line-clamp-1">{listing.title}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{listing.description}</p>
+            <div className="p-4 pt-2">
+                {/* Title */}
+                <h3 className="text-lg font-bold text-black mb-1 line-clamp-1">{listing.title}</h3>
 
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                            <span key={i} className={`text-lg ${i < listing.valueRating ? 'text-yellow-400' : 'text-gray-300'}`}>
-                                ★
-                            </span>
-                        ))}
-                    </div>
-                    <span className="text-xs text-gray-500">by {listing.owner?.username || 'Unknown'}</span>
-                </div>
+                {/* Category */}
+                <p className="text-sm text-black mb-1">
+                    Category: <span className="font-bold">{listing.category}</span>
+                </p>
 
-                <div className="flex gap-2">
+                {/* Current Value */}
+                <p className="text-sm text-black mb-4">
+                    Current Value: <span className="font-bold">₹{listing.price || listing.valueRating || 0}</span>
+                </p>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
                     <Link
                         to={`/listing/${listing._id}`}
-                        className="flex-1 btn btn-primary text-sm py-2 text-center"
+                        className="bg-transparent border border-black rounded px-4 py-1.5 text-sm font-medium text-black hover:bg-black hover:text-white transition-colors"
                     >
-                        View Details
+                        Place Bid
                     </Link>
+
                     {onWishlistToggle && (
                         <button
                             onClick={() => onWishlistToggle(listing._id)}
-                            className={`btn text-sm py-2 px-4 ${isInWishlist ? 'btn-primary' : 'btn-secondary'}`}
+                            className="text-2xl hover:scale-110 transition-transform"
                             title={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                         >
-                            {isInWishlist ? '❤️' : '🤍'}
+                            {isInWishlist ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black fill-current" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                                </svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                            )}
                         </button>
                     )}
                 </div>

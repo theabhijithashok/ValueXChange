@@ -50,7 +50,12 @@ const Login = () => {
         try {
             const result = await login(formData);
             if (result.success) {
-                navigate('/home');
+                // Check if admin to redirect appropriately
+                if (formData.email === 'admin@valuexchange.com') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/home');
+                }
             } else {
                 setError(result.message);
             }
@@ -149,12 +154,7 @@ const Login = () => {
                             {loading ? 'Logging in...' : 'Login'}
                         </button>
 
-                        <button
-                            type="button"
-                            className="w-full btn btn-secondary mb-4"
-                        >
-                            Admin login
-                        </button>
+
 
                         <div className="flex justify-center mb-6">
                             <button

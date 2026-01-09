@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import listingRoutes from './routes/listingRoutes.js';
 import bidRoutes from './routes/bidRoutes.js';
 
+
 // Load environment variables
 dotenv.config();
 
@@ -28,6 +29,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/bids', bidRoutes);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {

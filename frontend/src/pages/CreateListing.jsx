@@ -1,23 +1,48 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listingsAPI } from '../services/api';
+import { resizeImage } from '../utils/imageUtils';
 
 const CreateListing = () => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        category: 'Goods',
-        valueRating: 3
+        category: '',
+        price: '',
+        images: []
     });
     const [loading, setLoading] = useState(false);
+    const [imageProcessing, setImageProcessing] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleImageChange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setImageProcessing(true);
+            setError('');
+            try {
+                // Aggressive resize: 600px max, 0.6 quality to ensure fast upload
+                const resizedImage = await resizeImage(file, 600, 0.6);
+                setFormData(prev => ({
+                    ...prev,
+                    images: [resizedImage]
+                }));
+            } catch (err) {
+                console.error("Error resizing image:", err);
+                setError("Failed to process image. Please try another one.");
+            } finally {
+                setImageProcessing(false);
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -26,21 +51,48 @@ const CreateListing = () => {
         setLoading(true);
 
         try {
-            await listingsAPI.create(formData);
+            // Create a timeout promise
+            const timeout = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Request timed out. Please check your internet connection and try again.')), 15000);
+            });
+
+            // Race the API call against the timeout
+            await Promise.race([
+                listingsAPI.create({
+                    ...formData,
+                    price: parseFloat(formData.price) || 0,
+                    valueRating: 3 // Default value rating
+                }),
+                timeout
+            ]);
+
             navigate('/browse');
         } catch (error) {
-            setError(error.response?.data?.message || 'Failed to create listing');
+            console.error("Listing creation failed:", error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to create listing';
+
+            // Helpful messages for common Firestore errors
+            if (errorMessage.includes('storage/object-not-found') || errorMessage.includes('resource-exhausted')) {
+                setError("The image is too large or connection failed. Please try a smaller image.");
+            } else if (errorMessage.includes('permission-denied')) {
+                setError("You don't have permission to create listings. Please try logging in again.");
+            } else {
+                setError(errorMessage);
+            }
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                <h1 className="text-4xl font-bold mb-8">Create a Listing</h1>
+        <div className="min-h-screen bg-white pt-24 pb-12 flex justify-center">
+            <div className="w-full max-w-2xl px-4">
 
-                <div className="bg-white rounded-lg shadow-sm p-8">
+                <div className="bg-gray-200 rounded-3xl p-8 shadow-sm">
+                    <h1 className="text-3xl font-bold mb-8 text-black">Create new listing</h1>
+
+
+
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
                             {error}
@@ -48,81 +100,115 @@ const CreateListing = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Listing Title */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Title</label>
+                            <label className="block text-base font-semibold mb-2 text-black">Listing Title</label>
                             <input
                                 type="text"
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
-                                className="input-field"
-                                placeholder="What are you offering?"
+                                className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white placeholder-gray-400"
+                                placeholder="Enter item name"
                                 required
-                                maxLength={100}
                             />
                         </div>
 
+                        {/* Category */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Description</label>
+                            <label className="block text-base font-semibold mb-2 text-black">Category</label>
+                            <div className="relative">
+                                <select
+                                    name="category"
+                                    value={formData.category}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white appearance-none cursor-pointer"
+                                    required
+                                >
+                                    <option value="" disabled>Select category</option>
+                                    <option value="Goods">Goods</option>
+                                    <option value="Services">Services</option>
+                                    <option value="Skills">Skills</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                    <svg className="w-4 h-4 text-black" fill="bg-black" viewBox="0 0 20 20" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                            <label className="block text-base font-semibold mb-2 text-black">Description</label>
                             <textarea
                                 name="description"
                                 value={formData.description}
                                 onChange={handleChange}
-                                className="input-field"
-                                rows={5}
-                                placeholder="Describe your item or service in detail..."
+                                className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white placeholder-gray-400 resize-none"
+                                rows={4}
+                                placeholder="Describe your item"
                                 required
-                                maxLength={1000}
                             />
                         </div>
 
+                        {/* Base Value */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Category</label>
-                            <select
-                                name="category"
-                                value={formData.category}
-                                onChange={handleChange}
-                                className="input-field"
-                                required
-                            >
-                                <option value="Goods">Goods</option>
-                                <option value="Services">Services</option>
-                                <option value="Skills">Skills</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Value Rating: {formData.valueRating} / 5
-                            </label>
+                            <label className="block text-base font-semibold mb-2 text-black">Base Value</label>
                             <input
-                                type="range"
-                                name="valueRating"
-                                min="1"
-                                max="5"
-                                value={formData.valueRating}
+                                type="number"
+                                name="price"
+                                value={formData.price}
                                 onChange={handleChange}
-                                className="w-full"
+                                className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                required
                             />
-                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>Low Value</span>
-                                <span>High Value</span>
-                            </div>
                         </div>
 
-                        <div className="flex gap-4">
+                        {/* Upload Image */}
+                        <div>
+                            <label className="block text-base font-semibold mb-2 text-black">Upload image</label>
+                            <div className="bg-white rounded-lg p-1 flex items-center mb-2">
+                                <label className={`cursor-pointer bg-gray-200 hover:bg-gray-300 text-black text-sm font-medium py-1 px-3 rounded shadow-sm m-1 transition-colors border border-gray-300 ${imageProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    {imageProcessing ? 'Processing...' : 'Choose File'}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                        disabled={imageProcessing}
+                                    />
+                                </label>
+                                <span className="text-gray-500 text-sm ml-2">
+                                    {imageProcessing ? 'Optimizing image...' : (formData.images.length > 0 ? 'Image ready' : 'No file chosen')}
+                                </span>
+                            </div>
+                            {/* Image Preview */}
+                            {!imageProcessing && formData.images.length > 0 && (
+                                <div className="mt-2 rounded-lg overflow-hidden border border-gray-300 w-32 h-32 bg-white">
+                                    <img
+                                        src={formData.images[0]}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex gap-4 pt-4">
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="flex-1 btn btn-primary"
+                                disabled={loading || imageProcessing}
+                                className={`bg-black text-white font-bold py-3 px-8 rounded-lg transition-colors ${loading || imageProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-800'}`}
                             >
-                                {loading ? 'Creating...' : 'Create Listing'}
+                                {loading ? 'Creating...' : (imageProcessing ? 'Processing Image...' : 'Create listing')}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate('/browse')}
-                                className="flex-1 btn btn-secondary"
+                                className="bg-white text-black font-medium py-3 px-8 rounded-lg border border-black hover:bg-gray-50 transition-colors"
                             >
                                 Cancel
                             </button>

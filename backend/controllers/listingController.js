@@ -1,4 +1,5 @@
 import Listing from '../models/Listing.js';
+import { db, admin } from '../config/firebaseAdmin.js';
 
 // @desc    Get all listings
 // @route   GET /api/listings
@@ -74,6 +75,28 @@ export const createListing = async (req, res) => {
 
         const populatedListing = await Listing.findById(listing._id)
             .populate('owner', 'username email');
+
+        // Sync to Firestore
+        if (db) {
+            try {
+                await db.collection('listings').doc(listing._id.toString()).set({
+                    title: listing.title,
+                    description: listing.description,
+                    category: listing.category,
+                    images: listing.images,
+                    valueRating: listing.valueRating,
+                    ownerId: req.user._id.toString(),
+                    ownerUsername: populatedListing.owner.username,
+                    ownerEmail: populatedListing.owner.email,
+                    status: 'active',
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`Listing ${listing._id} synced to Firestore`);
+            } catch (fsError) {
+                console.error("Error syncing to Firestore:", fsError);
+                // Don't fail the request if Firestore sync fails, just log it
+            }
+        }
 
         res.status(201).json(populatedListing);
     } catch (error) {

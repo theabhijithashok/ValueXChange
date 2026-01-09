@@ -1,9 +1,10 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+    const { isAuthenticated, loading, user } = useAuth();
+    const location = useLocation();
 
     if (loading) {
         return (
@@ -16,7 +17,18 @@ const ProtectedRoute = ({ children }) => {
         );
     }
 
-    return isAuthenticated ? children : <Navigate to="/login" />;
+    if (!isAuthenticated) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    if (adminOnly) {
+        const isAdmin = user?.role === 'admin' || user?.email === 'admin@valuexchange.com';
+        if (!isAdmin) {
+            return <Navigate to="/home" replace />;
+        }
+    }
+
+    return children;
 };
 
 export default ProtectedRoute;
