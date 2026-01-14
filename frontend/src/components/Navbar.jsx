@@ -73,8 +73,11 @@ const Navbar = () => {
                                             Wishlist
                                         </Link>
 
-                                        <Link to="/profile" className="text-sm text-gray-600 hover:text-black hover:underline">
-                                            Welcome, {user?.username}
+                                        <Link to="/profile" className="flex items-center gap-2 group">
+                                            <span className="text-sm text-gray-600 group-hover:text-black transition-colors">
+                                                Welcome, {user?.username}
+                                            </span>
+
                                         </Link>
                                         <button onClick={handleLogout} className="btn btn-secondary text-sm py-2">
                                             Logout

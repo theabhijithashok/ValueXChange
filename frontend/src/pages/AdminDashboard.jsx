@@ -39,10 +39,37 @@ const AdminDashboard = () => {
         navigate('/');
     };
 
+    const handleBlockUser = async (userId, currentStatus) => {
+        if (window.confirm(`Are you sure you want to ${currentStatus === 'blocked' ? 'unblock' : 'block'} this user?`)) {
+            try {
+                const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
+                await userService.updateStatus(userId, newStatus);
+                setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus } : u));
+            } catch (error) {
+                console.error("Error updating user status:", error);
+                alert("Failed to update user status");
+            }
+        }
+    };
+
+    const handleDeleteListing = async (listingId) => {
+        if (window.confirm("Are you sure you want to delete this listing?")) {
+            try {
+                await listingService.delete(listingId);
+                setListings(listings.filter(l => l.id !== listingId));
+            } catch (error) {
+                console.error("Error deleting listing:", error);
+                alert("Failed to delete listing");
+            }
+        }
+    };
+
     const stats = [
         { title: 'Total Users', value: users.length },
         { title: 'Active Listings', value: listings.filter(l => l.status === 'active').length },
-        { title: 'Total Transactions', value: bids.length },
+        { title: 'Closed Listings', value: listings.filter(l => l.status !== 'active').length },
+        { title: 'Accepted Bids', value: bids.filter(b => b.status === 'accepted').length },
+        { title: 'Completed Exchanges', value: bids.filter(b => b.status === 'completed').length },
     ];
 
     if (loading) {
@@ -58,7 +85,7 @@ const AdminDashboard = () => {
             {/* Sidebar */}
             <aside className="w-64 bg-gray-200 border-r border-gray-300 flex flex-col fixed h-full z-10">
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    {['dashboard', 'users', 'listings'].map(tab => (
+                    {['dashboard', 'users', 'listings', 'bids'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -67,7 +94,8 @@ const AdminDashboard = () => {
                         >
                             {tab === 'dashboard' ? 'Dashboard' :
                                 tab === 'users' ? 'Manage Users' :
-                                    tab === 'listings' ? 'Manage Listings' : tab}
+                                    tab === 'listings' ? 'Manage Listings' :
+                                        tab === 'bids' ? 'Manage Bids' : tab}
                         </button>
                     ))}
                 </nav>
@@ -78,10 +106,10 @@ const AdminDashboard = () => {
                 {activeTab === 'dashboard' && (
                     <>
                         {/* Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
                             {stats.map((stat, index) => (
                                 <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 flex flex-col items-center justify-center h-32 hover:shadow-md transition-shadow">
-                                    <h3 className="text-gray-500 text-sm font-medium mb-1 uppercase tracking-wider">{stat.title}</h3>
+                                    <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider text-center">{stat.title}</h3>
                                     <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
                                 </div>
                             ))}
@@ -137,6 +165,8 @@ const AdminDashboard = () => {
                                         <th className="px-6 py-3">Email</th>
                                         <th className="px-6 py-3">Joined</th>
                                         <th className="px-6 py-3">Role</th>
+                                        <th className="px-6 py-3">Status</th>
+                                        <th className="px-6 py-3">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -146,9 +176,24 @@ const AdminDashboard = () => {
                                             <td className="px-6 py-4">{user.email}</td>
                                             <td className="px-6 py-4">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                                                     {user.role || 'user'}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.status === 'blocked' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                    {user.status || 'active'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {user.role !== 'admin' && (
+                                                    <button
+                                                        onClick={() => handleBlockUser(user.id, user.status)}
+                                                        className={`text-xs px-3 py-1 rounded border ${user.status === 'blocked' ? 'border-green-600 text-green-600 hover:bg-green-50' : 'border-red-600 text-red-600 hover:bg-red-50'}`}
+                                                    >
+                                                        {user.status === 'blocked' ? 'Unblock' : 'Block'}
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -172,6 +217,7 @@ const AdminDashboard = () => {
                                         <th className="px-6 py-3">Price</th>
                                         <th className="px-6 py-3">Status</th>
                                         <th className="px-6 py-3">Date</th>
+                                        <th className="px-6 py-3">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -186,10 +232,63 @@ const AdminDashboard = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">{listing.createdAt && listing.createdAt.toDate ? new Date(listing.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                            <td className="px-6 py-4">
+                                                <button
+                                                    onClick={() => handleDeleteListing(listing.id)}
+                                                    className="text-xs px-3 py-1 rounded border border-red-600 text-red-600 hover:bg-red-50"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'bids' && (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h3 className="text-xl font-bold text-gray-900">Manage Bids & Negotiations</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm text-gray-600">
+                                <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-semibold">
+                                    <tr>
+                                        <th className="px-6 py-3">Listing</th>
+                                        <th className="px-6 py-3">Bidder</th>
+                                        <th className="px-6 py-3">Amounts / Offer</th>
+                                        <th className="px-6 py-3">Status</th>
+                                        <th className="px-6 py-3">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {bids.map(bid => (
+                                        <tr key={bid.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-gray-900">{bid.listing?.title || 'Unknown Listing'}</td>
+                                            <td className="px-6 py-4">{bid.bidder?.username || 'Unknown User'}</td>
+                                            <td className="px-6 py-4 font-medium">₹{bid.amount || bid.offer || 'N/A'}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${bid.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                                    bid.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                        bid.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-yellow-100 text-yellow-800'
+                                                    }`}>
+                                                    {bid.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">{bid.createdAt && bid.createdAt.toDate ? new Date(bid.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {bids.length === 0 && (
+                                <div className="text-center py-8 text-gray-500">
+                                    No bids found.
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

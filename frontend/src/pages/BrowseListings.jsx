@@ -12,7 +12,7 @@ const BrowseListings = () => {
         category: '',
         search: ''
     });
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth();
     const [wishlist, setWishlist] = useState([]);
 
     useEffect(() => {
@@ -30,7 +30,14 @@ const BrowseListings = () => {
             if (filters.search) params.search = filters.search;
 
             const response = await listingsAPI.getAll(params);
-            setListings(response.data);
+
+            // Filter out own listings if user is logged in
+            let fetchedListings = response.data;
+            if (user) {
+                fetchedListings = fetchedListings.filter(listing => listing.owner?._id !== user.uid);
+            }
+
+            setListings(fetchedListings);
         } catch (error) {
             setError('Failed to load listings');
             console.error('Error fetching listings:', error);
@@ -43,15 +50,27 @@ const BrowseListings = () => {
         try {
             const isInWishlist = wishlist.some(id => id === listingId);
 
+            let newWishlist;
             if (isInWishlist) {
-                await authAPI.removeFromWishlist(listingId);
-                setWishlist(wishlist.filter(id => id !== listingId));
+                newWishlist = wishlist.filter(id => id !== listingId);
             } else {
-                await authAPI.addToWishlist(listingId);
-                setWishlist([...wishlist, listingId]);
+                newWishlist = [...wishlist, listingId];
+            }
+
+            // Optimistic Update
+            setWishlist(newWishlist);
+
+            // Update Context and DB
+            const result = await updateProfile({ wishlist: newWishlist });
+            if (!result.success) {
+                // Revert on failure
+                setWishlist(wishlist);
+                console.error('Failed to update wishlist:', result.message);
             }
         } catch (error) {
             console.error('Wishlist toggle error:', error);
+            // Revert on error
+            setWishlist(wishlist);
         }
     };
 
@@ -71,7 +90,10 @@ const BrowseListings = () => {
                             className="flex-1 bg-[#D9D9D9] border border-black border-r-0 px-4 py-2 outline-none"
                         />
                         <button className="bg-black text-white px-6 py-2 border border-black flex items-center gap-2">
-                            <span className="transform rotate-0">⌕</span> Search
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            Search
                         </button>
                     </div>
                 </div>
@@ -96,10 +118,10 @@ const BrowseListings = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {listings.map((listing) => (
                                     <ListingCard
-                                        key={listing._id}
+                                        key={listing.id}
                                         listing={listing}
                                         onWishlistToggle={user ? handleWishlistToggle : null}
-                                        isInWishlist={wishlist.some(id => id === listing._id)}
+                                        isInWishlist={wishlist.some(id => id === listing.id)}
                                     />
                                 ))}
                             </div>

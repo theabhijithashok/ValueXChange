@@ -116,9 +116,13 @@ export const AuthProvider = ({ children }) => {
 
             return { success: true };
         } catch (error) {
+            let message = error.message;
+            if (error.code === 'auth/invalid-credential' || error.message.includes('invalid-credential')) {
+                message = "Invalid email or password";
+            }
             return {
                 success: false,
-                message: error.message
+                message
             };
         }
     };

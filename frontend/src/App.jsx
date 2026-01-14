@@ -70,6 +70,14 @@ const AppRoutes = () => {
                 }
             />
             <Route
+                path="/wishlist"
+                element={
+                    <ProtectedRoute>
+                        <Wishlist />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
                 path="/admin"
                 element={
                     <ProtectedRoute adminOnly={true}>

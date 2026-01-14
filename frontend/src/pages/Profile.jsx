@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { listingService, bidService } from '../services/firestore';
-import { Link } from 'react-router-dom';
+import { MIN_DESC_LENGTH, MAX_DESC_LENGTH } from '../utils/validation';
+import { Link, useLocation } from 'react-router-dom';
 
 const Profile = () => {
     const { user, updateProfile } = useAuth();
-    const [activeTab, setActiveTab] = useState('profile');
+    const location = useLocation();
+    const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profile');
     const [username, setUsername] = useState(user?.username || '');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
@@ -14,6 +16,8 @@ const Profile = () => {
     // Data states
     const [myListings, setMyListings] = useState([]);
     const [receivedOffers, setReceivedOffers] = useState([]);
+    const [editingListing, setEditingListing] = useState(null); // State for the listing being edited
+    const [editError, setEditError] = useState(''); // State for edit modal validation errors
 
     useEffect(() => {
         if (user) {
@@ -89,6 +93,72 @@ const Profile = () => {
         } catch (err) {
             console.error("Error updating offer", err);
             setError("Failed to update offer status.");
+        }
+    };
+
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setEditingListing(prev => ({
+            ...prev,
+            [name]: value
+        }));
+
+        if (name === 'price') {
+            const priceValue = parseFloat(value);
+            // Check if value is not empty and invalid
+            if (value !== '' && (isNaN(priceValue) || priceValue <= 0)) {
+                setEditError('Invalid price');
+            } else {
+                // Clear error if it's currently showing the price error
+                if (editError === 'Invalid price') {
+                    setEditError('');
+                }
+            }
+        }
+
+        if (name === 'description') {
+            if (value.length < MIN_DESC_LENGTH) {
+                setEditError(`Description must be at least ${MIN_DESC_LENGTH} characters`);
+            } else if (value.length > MAX_DESC_LENGTH) {
+                setEditError(`Description cannot exceed ${MAX_DESC_LENGTH} characters`);
+            } else {
+                if (editError && editError.includes('Description')) {
+                    setEditError('');
+                }
+            }
+        }
+    };
+
+    const handleUpdateListing = async (e) => {
+        e.preventDefault();
+        if (!editingListing) return;
+        setEditError('');
+
+        // Final Validation before submit
+        const priceValue = parseFloat(editingListing.price);
+        if (isNaN(priceValue) || priceValue <= 0) {
+            setEditError('Invalid price');
+            return;
+        }
+
+        if (editingListing.description.length < MIN_DESC_LENGTH || editingListing.description.length > MAX_DESC_LENGTH) {
+            setEditError(`Description must be between ${MIN_DESC_LENGTH} and ${MAX_DESC_LENGTH} characters`);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const { id, title, price, category, description } = editingListing;
+            await listingService.update(id, { title, price, category, description });
+
+            setMyListings(prev => prev.map(l => l.id === id ? { ...l, title, price, category, description } : l));
+            setEditingListing(null);
+            setMessage("Listing updated successfully!");
+        } catch (err) {
+            console.error("Error updating listing", err);
+            setError("Failed to update listing.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -221,20 +291,150 @@ const Profile = () => {
                                     <div className="space-y-4">
                                         {myListings.map(listing => (
                                             <div key={listing.id} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-white hover:shadow-sm transition-shadow">
-                                                <div>
-                                                    <h3 className="font-bold text-lg">{listing.title}</h3>
-                                                    <p className="text-sm text-gray-500">Price: <span className="text-black font-medium">₹{listing.price}</span> • Category: {listing.category}</p>
+                                                <div className="flex items-center gap-4">
+                                                    {/* Image Preview */}
+                                                    <div className="h-24 w-24 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                                                        {listing.images && listing.images.length > 0 ? (
+                                                            <img
+                                                                src={listing.images[0]}
+                                                                alt={listing.title}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>
+                                                        )}
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="font-bold text-lg mb-1">{listing.title}</h3>
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm text-gray-500">
+                                                                Price: <span className="text-black font-medium">₹{listing.price}</span>
+                                                            </p>
+                                                            <p className="text-sm text-gray-500">
+                                                                Category: {listing.category}
+                                                            </p>
+                                                            <p className="text-sm text-gray-500">
+                                                                Created: {listing.createdAt?.seconds ? new Date(listing.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleDeleteListing(listing.id)}
-                                                    className="text-red-600 hover:text-red-800 text-sm font-medium px-4 py-2 hover:bg-red-50 rounded-lg transition-colors"
-                                                >
-                                                    Delete
-                                                </button>
+                                                <div className="flex flex-col gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingListing(listing);
+                                                            setEditError('');
+                                                        }}
+                                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium px-4 py-2 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteListing(listing.id)}
+                                                        className="text-red-600 hover:text-red-800 text-sm font-medium px-4 py-2 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Edit Listing Modal */}
+                        {editingListing && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+                                    <h3 className="text-xl font-bold mb-4">Edit Listing</h3>
+                                    <form onSubmit={handleUpdateListing} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Title</label>
+                                            <input
+                                                type="text"
+                                                name="title"
+                                                value={editingListing.title || ''}
+                                                onChange={handleEditChange}
+                                                className="input-field"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Price</label>
+                                            <input
+                                                type="number"
+                                                name="price"
+                                                value={editingListing.price || ''}
+                                                onChange={handleEditChange}
+                                                className="input-field"
+                                                required
+                                            />
+                                            {editError && editError.includes('Invalid price') && (
+                                                <p className="text-red-500 text-sm mt-1">{editError}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Category</label>
+                                            <select
+                                                name="category"
+                                                value={editingListing.category || ''}
+                                                onChange={handleEditChange}
+                                                className="input-field"
+                                                required
+                                            >
+                                                <option value="">Select Category</option>
+                                                <option value="Electronics">Electronics</option>
+                                                <option value="Furniture">Furniture</option>
+                                                <option value="Books">Books</option>
+                                                <option value="Clothing">Clothing</option>
+                                                <option value="Vehicles">Vehicles</option>
+                                                <option value="Services">Services</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Description</label>
+                                            <textarea
+                                                name="description"
+                                                value={editingListing.description || ''}
+                                                onChange={handleEditChange}
+                                                className="input-field min-h-[100px]"
+                                                required
+                                                minLength={MIN_DESC_LENGTH}
+                                                maxLength={MAX_DESC_LENGTH}
+                                            />
+                                            <div className="flex justify-between items-start mt-1">
+                                                {editError && editError.includes('Description') ? (
+                                                    <p className="text-red-500 text-sm">{editError}</p>
+                                                ) : (
+                                                    <span></span>
+                                                )}
+                                                <span className={`text-xs ${editingListing.description.length >= MAX_DESC_LENGTH ? 'text-red-500' : 'text-gray-500'}`}>
+                                                    {editingListing.description.length}/{MAX_DESC_LENGTH}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingListing(null)}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={loading}
+                                                className="btn btn-primary"
+                                            >
+                                                {loading ? 'Saving...' : 'Save Changes'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         )}
 
@@ -297,7 +497,7 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

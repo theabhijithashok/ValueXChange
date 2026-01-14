@@ -28,6 +28,8 @@ const ListingCard = ({ listing, onWishlistToggle, isInWishlist }) => {
                     Category: <span className="font-bold">{listing.category}</span>
                 </p>
 
+
+
                 {/* Current Value */}
                 <p className="text-sm text-black mb-4">
                     Current Value: <span className="font-bold">₹{listing.price || listing.valueRating || 0}</span>
@@ -36,7 +38,7 @@ const ListingCard = ({ listing, onWishlistToggle, isInWishlist }) => {
                 {/* Actions */}
                 <div className="flex items-center justify-between">
                     <Link
-                        to={`/listing/${listing._id}`}
+                        to={`/listing/${listing.id}`}
                         className="bg-transparent border border-black rounded px-4 py-1.5 text-sm font-medium text-black hover:bg-black hover:text-white transition-colors"
                     >
                         Place Bid
@@ -44,7 +46,7 @@ const ListingCard = ({ listing, onWishlistToggle, isInWishlist }) => {
 
                     {onWishlistToggle && (
                         <button
-                            onClick={() => onWishlistToggle(listing._id)}
+                            onClick={() => onWishlistToggle(listing.id)}
                             className="text-2xl hover:scale-110 transition-transform"
                             title={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                         >

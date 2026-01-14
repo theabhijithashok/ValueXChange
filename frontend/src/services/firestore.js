@@ -12,9 +12,11 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.config';
+import { setDoc } from 'firebase/firestore';
 
 // Collection Refs
 const listingsRef = collection(db, 'listings');
+const deletedListingsRef = collection(db, 'deletedListings');
 const bidsRef = collection(db, 'bids');
 const usersRef = collection(db, 'users');
 
@@ -104,11 +106,27 @@ export const listingService = {
         }
     },
 
-    // Delete Listing
+    // Delete Listing (Move to deletedListings collection)
     delete: async (id) => {
         try {
-            await deleteDoc(doc(db, 'listings', id));
-            return { success: true };
+            const docRef = doc(db, 'listings', id);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                // Save to deletedListings collection
+                await setDoc(doc(db, 'deletedListings', id), {
+                    ...data,
+                    originalId: id,
+                    deletedAt: serverTimestamp(),
+                    status: 'deleted'
+                });
+
+                // Remove from active listings
+                await deleteDoc(docRef);
+                return { success: true };
+            }
+            throw new Error("Listing not found");
         } catch (error) {
             console.error("Error deleting listing:", error);
             throw error;
@@ -296,19 +314,25 @@ export const userService = {
                 if (wishlistIds.length === 0) return [];
 
                 // Fetch all listings
-                const listings = await Promise.all(wishlistIds.map(async (id) => {
-                    const listingSnap = await getDoc(doc(db, 'listings', id));
-                    if (listingSnap.exists()) {
-                        const data = listingSnap.data();
-                        // We might need owner info too
-                        return {
-                            _id: listingSnap.id,
-                            id: listingSnap.id,
-                            ...data
-                        };
+                const listingPromises = wishlistIds.map(async (id) => {
+                    if (!id || typeof id !== 'string') return null;
+                    try {
+                        const listingSnap = await getDoc(doc(db, 'listings', id));
+                        if (listingSnap.exists()) {
+                            const data = listingSnap.data();
+                            return {
+                                _id: listingSnap.id,
+                                id: listingSnap.id,
+                                ...data
+                            };
+                        }
+                    } catch (err) {
+                        console.warn(`Failed to fetch listing ${id}:`, err);
                     }
                     return null;
-                }));
+                });
+
+                const listings = await Promise.all(listingPromises);
 
                 return listings.filter(l => l !== null);
             }
@@ -326,6 +350,17 @@ export const userService = {
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (error) {
             console.error("Error getting all users:", error);
+            throw error;
+        }
+    },
+
+    updateStatus: async (userId, status) => {
+        try {
+            const userRef = doc(db, 'users', userId);
+            await updateDoc(userRef, { status: status });
+            return { success: true };
+        } catch (error) {
+            console.error("Error updating user status:", error);
             throw error;
         }
     }

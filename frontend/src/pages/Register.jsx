@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getRegistrationErrors } from '../utils/validation';
+import banner from '../assets/banner.png';
 
 
 const Register = () => {
@@ -229,7 +230,7 @@ const Register = () => {
                 </div>
 
                 {/* Right Side - Decorative */}
-                <div className="hidden md:block w-1/2 bg-gradient-to-br from-gray-200 to-gray-300 border-l border-gray-300"></div>
+                <div className="hidden md:block w-1/2 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}></div>
             </div>
         </div>
     );

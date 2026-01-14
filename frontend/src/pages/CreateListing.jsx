@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listingsAPI } from '../services/api';
 import { resizeImage } from '../utils/imageUtils';
+import { MIN_DESC_LENGTH, MAX_DESC_LENGTH } from '../utils/validation';
 
 const CreateListing = () => {
+
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -22,6 +24,31 @@ const CreateListing = () => {
             ...prev,
             [name]: value
         }));
+
+        if (name === 'price') {
+            const priceValue = parseFloat(value);
+            // Check if value is not empty and invalid
+            if (value !== '' && (isNaN(priceValue) || priceValue <= 0)) {
+                setError('Invalid price');
+            } else {
+                // Clear error if it's currently showing the price error
+                if (error === 'Invalid price') {
+                    setError('');
+                }
+            }
+        }
+
+        if (name === 'description') {
+            if (value.length < MIN_DESC_LENGTH) {
+                setError(`Description must be at least ${MIN_DESC_LENGTH} characters`);
+            } else if (value.length > MAX_DESC_LENGTH) {
+                setError(`Description cannot exceed ${MAX_DESC_LENGTH} characters`);
+            } else {
+                if (error && error.includes('Description')) {
+                    setError('');
+                }
+            }
+        }
     };
 
     const handleImageChange = async (e) => {
@@ -48,6 +75,23 @@ const CreateListing = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        if (formData.images.length === 0) {
+            setError('Please upload at least one image of your item');
+            return;
+        }
+
+        const priceValue = parseFloat(formData.price);
+        if (isNaN(priceValue) || priceValue <= 0) {
+            setError('Invalid price');
+            return;
+        }
+
+        if (formData.description.length < MIN_DESC_LENGTH || formData.description.length > MAX_DESC_LENGTH) {
+            setError(`Description must be between ${MIN_DESC_LENGTH} and ${MAX_DESC_LENGTH} characters`);
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -66,7 +110,7 @@ const CreateListing = () => {
                 timeout
             ]);
 
-            navigate('/browse');
+            navigate('/profile', { state: { activeTab: 'listings' } });
         } catch (error) {
             console.error("Listing creation failed:", error);
             const errorMessage = error.response?.data?.message || error.message || 'Failed to create listing';
@@ -93,7 +137,7 @@ const CreateListing = () => {
 
 
 
-                    {error && (
+                    {error && !error.includes('Invalid price') && !error.includes('Description') && !error.includes('Please upload') && (
                         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
                             {error}
                         </div>
@@ -126,9 +170,11 @@ const CreateListing = () => {
                                     required
                                 >
                                     <option value="" disabled>Select category</option>
-                                    <option value="Goods">Goods</option>
-                                    <option value="Services">Services</option>
-                                    <option value="Skills">Skills</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Furniture">Furniture</option>
+                                    <option value="Books">Books</option>
+                                    <option value="Clothing">Clothing</option>
+                                    <option value="Vehicles">Vehicles</option>
                                     <option value="Other">Other</option>
                                 </select>
                                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
@@ -150,7 +196,19 @@ const CreateListing = () => {
                                 rows={4}
                                 placeholder="Describe your item"
                                 required
+                                minLength={MIN_DESC_LENGTH}
+                                maxLength={MAX_DESC_LENGTH}
                             />
+                            <div className="flex justify-between items-start mt-1">
+                                {error && error.includes('Description') ? (
+                                    <p className="text-red-500 text-sm">{error}</p>
+                                ) : (
+                                    <span></span>
+                                )}
+                                <span className={`text-xs ${formData.description.length >= MAX_DESC_LENGTH ? 'text-red-500' : 'text-gray-500'}`}>
+                                    {formData.description.length}/{MAX_DESC_LENGTH}
+                                </span>
+                            </div>
                         </div>
 
                         {/* Base Value */}
@@ -164,6 +222,9 @@ const CreateListing = () => {
                                 className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 required
                             />
+                            {error && error.includes('Invalid price') && (
+                                <p className="text-red-500 text-sm mt-1">{error}</p>
+                            )}
                         </div>
 
                         {/* Upload Image */}
@@ -194,6 +255,9 @@ const CreateListing = () => {
                                     />
                                 </div>
                             )}
+                            {error && error.includes('Please upload') && (
+                                <p className="text-red-500 text-sm mt-1">{error}</p>
+                            )}
                         </div>
 
                         {/* Buttons */}
@@ -215,8 +279,8 @@ const CreateListing = () => {
                         </div>
                     </form>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

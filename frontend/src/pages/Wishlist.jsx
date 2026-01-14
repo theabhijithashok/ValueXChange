@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import ListingCard from '../components/ListingCard';
 
 const Wishlist = () => {
+    const { user, updateProfile } = useAuth();
     const [wishlistItems, setWishlistItems] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -23,10 +25,18 @@ const Wishlist = () => {
 
     const handleRemoveFromWishlist = async (listingId) => {
         try {
-            await authAPI.removeFromWishlist(listingId);
-            setWishlistItems(wishlistItems.filter(item => item._id !== listingId));
+            // Optimistic update for UI
+            const updatedItems = wishlistItems.filter(item => item.id !== listingId);
+            setWishlistItems(updatedItems);
+
+            // Sync with Context and DB
+            // We need to pass the list of IDs, not objects
+            const newWishlistIds = user?.wishlist ? user.wishlist.filter(id => id !== listingId) : [];
+            await updateProfile({ wishlist: newWishlistIds });
+
         } catch (error) {
             console.error('Failed to remove from wishlist:', error);
+            // Could revert local state here if needed
         }
     };
 
@@ -50,7 +60,7 @@ const Wishlist = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {wishlistItems.map((listing) => (
                             <ListingCard
-                                key={listing._id}
+                                key={listing.id}
                                 listing={listing}
                                 onWishlistToggle={handleRemoveFromWishlist}
                                 isInWishlist={true}
@@ -59,7 +69,13 @@ const Wishlist = () => {
                     </div>
                 ) : (
                     <div className="text-center py-12 bg-white rounded-lg">
-                        <div className="text-6xl mb-4">💔</div>
+                        <div className="flex justify-center mb-4">
+                            <img
+                                src="https://img.freepik.com/premium-vector/broken-heart-icon-symbol-heartbreak-vector-illustration-eps-10_797523-3099.jpg"
+                                alt="Empty Wishlist"
+                                className="h-32 w-32 object-contain mix-blend-multiply"
+                            />
+                        </div>
                         <p className="text-gray-600 text-lg mb-4">Your wishlist is empty</p>
                         <a href="/browse" className="btn btn-primary inline-block">
                             Browse Listings

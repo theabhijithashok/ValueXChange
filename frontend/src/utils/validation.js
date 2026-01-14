@@ -1,3 +1,6 @@
+export const MIN_DESC_LENGTH = 20;
+export const MAX_DESC_LENGTH = 150;
+
 export const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
