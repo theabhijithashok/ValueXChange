@@ -2,14 +2,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import GlobalChat from './GlobalChat';
+
 
 const Navbar = () => {
     const { isAuthenticated, user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
     const [isScrolled, setIsScrolled] = useState(false);
     const isAdminRoute = location.pathname.startsWith('/admin');
+
+    useEffect(() => {
+        setIsChatOpen(false);
+    }, [location.pathname]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -73,6 +81,14 @@ const Navbar = () => {
                                             Wishlist
                                         </Link>
 
+                                        <button
+                                            onClick={() => setIsChatOpen(true)}
+                                            className="text-sm text-gray-700 hover:text-black transition-colors"
+                                        >
+                                            Chat
+                                        </button>
+
+
                                         <Link to="/profile" className="flex items-center gap-2 group">
                                             <span className="text-sm text-gray-600 group-hover:text-black transition-colors">
                                                 Welcome, {user?.username}
@@ -134,6 +150,8 @@ const Navbar = () => {
                     </div>
                 )
             }
+            <GlobalChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
         </>
     );
 };
