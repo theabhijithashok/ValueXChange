@@ -9,7 +9,9 @@ import {
     query,
     where,
     orderBy,
-    serverTimestamp
+    serverTimestamp,
+    onSnapshot,
+    documentId
 } from 'firebase/firestore';
 import { db } from '../firebase.config';
 import { setDoc } from 'firebase/firestore';
@@ -19,6 +21,9 @@ const listingsRef = collection(db, 'listings');
 const deletedListingsRef = collection(db, 'deletedListings');
 const bidsRef = collection(db, 'bids');
 const usersRef = collection(db, 'users');
+
+// In-memory cache for user profiles to optimize inbox loading
+const userProfileCache = {};
 
 // Listings Service
 export const listingService = {
@@ -39,8 +44,8 @@ export const listingService = {
         }
     },
 
-    // Get All Listings (with optional category filter)
-    getAll: async (category = null) => {
+    // Get All Listings (with optional category filter and search)
+    getAll: async (category = null, search = null) => {
         try {
             let q = query(listingsRef, orderBy('createdAt', 'desc'));
             if (category && category !== 'All') {
@@ -49,7 +54,7 @@ export const listingService = {
             const snapshot = await getDocs(q);
 
             // Enrich with owner info
-            const listings = await Promise.all(snapshot.docs.map(async (listingDoc) => {
+            let listings = await Promise.all(snapshot.docs.map(async (listingDoc) => {
                 const data = listingDoc.data();
                 let ownerData = { username: 'Unknown User' };
                 if (data.owner) {
@@ -65,6 +70,17 @@ export const listingService = {
                     owner: { _id: data.owner, ...ownerData }
                 };
             }));
+
+            // Apply client-side search filter if search query exists
+            if (search && search.trim() !== '') {
+                const searchLower = search.toLowerCase().trim();
+                listings = listings.filter(listing => {
+                    const titleMatch = listing.title?.toLowerCase().includes(searchLower);
+                    const descriptionMatch = listing.description?.toLowerCase().includes(searchLower);
+                    const categoryMatch = listing.category?.toLowerCase().includes(searchLower);
+                    return titleMatch || descriptionMatch || categoryMatch;
+                });
+            }
 
             return listings;
         } catch (error) {
@@ -363,5 +379,191 @@ export const userService = {
             console.error("Error updating user status:", error);
             throw error;
         }
+    }
+};
+
+// Chat Service
+export const chatService = {
+    // Create or Get Conversation
+    createConversation: async (participants) => {
+        try {
+            // Check if conversation already exists (simplified check)
+            // In a real app, you'd likely query for a conversation containing these exact participants
+            // For now, we'll just create a new one every time or rely on a composite ID if needed
+            // Let's use a composite ID of sorted user IDs to ensure uniqueness if possible,
+            // or just query. For speed, we will just create/return if exists query.
+
+            const conversationsRef = collection(db, 'conversations');
+            // Basic query to find if a chat exists between these two
+            // Note: Array-contains is limited. A better schema usually involves a map of participants.
+            // For this MVP, we just create a new one if we don't find one in a simple client-side check or just create.
+            // We'll proceed with creating/getting based on a unique ID we generate:
+
+            const sortedIds = [...participants].sort().join('_');
+            const docRef = doc(db, 'conversations', sortedIds);
+            const docSnap = await getDoc(docRef);
+
+            if (!docSnap.exists()) {
+                await setDoc(docRef, {
+                    participants: participants,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    lastMessage: ''
+                });
+            }
+            return { id: docRef.id };
+        } catch (error) {
+            console.error("Error creating conversation:", error);
+            throw error;
+        }
+    },
+
+    // Send Message
+    sendMessage: async (conversationId, senderId, text) => {
+        try {
+            const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+            await addDoc(messagesRef, {
+                senderId: senderId,
+                text: text,
+                createdAt: serverTimestamp()
+            });
+
+            // Update conversation last message
+            const conversationRef = doc(db, 'conversations', conversationId);
+            await updateDoc(conversationRef, {
+                lastMessage: text,
+                updatedAt: serverTimestamp()
+            });
+
+            return { success: true };
+        } catch (error) {
+            console.error("Error sending message:", error);
+            throw error;
+        }
+    },
+
+    // Subscribe to Messages
+    subscribeToMessages: (conversationId, callback) => {
+        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+        const q = query(messagesRef, orderBy('createdAt', 'asc'));
+
+        // Return the unsubscribe function directly
+        return onSnapshot(q, (snapshot) => {
+            const messages = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            callback(messages);
+        });
+    },
+
+    // Get All Conversations for User (One-time fetch)
+    getConversations: async (userId) => {
+        try {
+            const conversationsRef = collection(db, 'conversations');
+            const q = query(conversationsRef, where('participants', 'array-contains', userId), orderBy('updatedAt', 'desc'));
+            const snapshot = await getDocs(q);
+
+            const conversations = await Promise.all(snapshot.docs.map(async (docSnap) => {
+                const data = docSnap.data();
+                // Find the other participant
+                const otherUserId = data.participants.find(p => p !== userId);
+                let otherUser = { username: 'Unknown User', _id: otherUserId };
+
+                if (otherUserId) {
+                    const userRef = doc(db, 'users', otherUserId);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        otherUser = { _id: otherUserId, ...userSnap.data() };
+                    }
+                }
+
+                return {
+                    id: docSnap.id,
+                    ...data,
+                    otherUser
+                };
+            }));
+
+            return conversations;
+        } catch (error) {
+            console.error("Error getting conversations:", error);
+            throw error;
+        }
+    },
+
+    // Subscribe to Conversations (Real-time List)
+    subscribeToConversations: (userId, callback) => {
+        const conversationsRef = collection(db, 'conversations');
+        const q = query(conversationsRef, where('participants', 'array-contains', userId), orderBy('updatedAt', 'desc'));
+
+        return onSnapshot(q, async (snapshot) => {
+            // 1. Collect all unique user IDs that need fetching
+            const otherUserIds = new Set();
+            const conversationsMap = [];
+
+            snapshot.docs.forEach(docSnap => {
+                const data = docSnap.data();
+                const otherUserId = data.participants.find(p => p !== userId);
+                if (otherUserId) {
+                    otherUserIds.add(otherUserId);
+                }
+                conversationsMap.push({
+                    id: docSnap.id,
+                    ...data,
+                    otherUserId // store temporarily
+                });
+            });
+
+            // 2. Filter out IDs we already have in cache
+            const idsToFetch = [...otherUserIds].filter(id => !userProfileCache[id]);
+
+            // 3. Fetch missing profiles in batches (Firestore 'in' limit is 10)
+            if (idsToFetch.length > 0) {
+                const batchPromises = [];
+                // Chunk into arrays of 10
+                for (let i = 0; i < idsToFetch.length; i += 10) {
+                    const batch = idsToFetch.slice(i, i + 10);
+                    if (batch.length > 0) {
+                        const usersQuery = query(collection(db, 'users'), where(documentId(), 'in', batch));
+                        batchPromises.push(getDocs(usersQuery));
+                    }
+                }
+
+                try {
+                    const paramsResults = await Promise.all(batchPromises);
+                    paramsResults.forEach(querySnapshot => {
+                        querySnapshot.docs.forEach(doc => {
+                            userProfileCache[doc.id] = { _id: doc.id, ...doc.data() };
+                        });
+                    });
+
+                    // Handle any IDs that weren't found (deleted users etc) to prevent re-fetching
+                    idsToFetch.forEach(id => {
+                        if (!userProfileCache[id]) {
+                            userProfileCache[id] = { _id: id, username: 'Unknown User' };
+                        }
+                    });
+
+                } catch (error) {
+                    console.error("Error batch fetching users:", error);
+                }
+            }
+
+            // 4. Assemble final result
+            const conversations = conversationsMap.map(conv => {
+                const otherUser = conv.otherUserId ?
+                    (userProfileCache[conv.otherUserId] || { username: 'Loading...', _id: conv.otherUserId })
+                    : { username: 'Unknown User' };
+
+                const { otherUserId, ...rest } = conv;
+                return {
+                    ...rest,
+                    otherUser
+                };
+            });
+
+            callback(conversations);
+        });
     }
 };

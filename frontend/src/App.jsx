@@ -10,6 +10,8 @@ import Register from './pages/Register';
 import Home from './pages/Home';
 import BrowseListings from './pages/BrowseListings';
 import CreateListing from './pages/CreateListing';
+import ListingDetails from './pages/ListingDetails';
+
 import Wishlist from './pages/Wishlist';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -43,6 +45,7 @@ const AppRoutes = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/browse" element={<BrowseListings />} />
+            <Route path="/listing/:id" element={<ProtectedRoute><ListingDetails /></ProtectedRoute>} />
 
             {/* Protected Routes */}
             <Route
@@ -77,6 +80,7 @@ const AppRoutes = () => {
                     </ProtectedRoute>
                 }
             />
+
             <Route
                 path="/admin"
                 element={

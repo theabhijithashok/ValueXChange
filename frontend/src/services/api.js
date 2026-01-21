@@ -1,4 +1,4 @@
-import { listingService, bidService, userService } from './firestore';
+import { listingService, bidService, userService, chatService } from './firestore';
 import { auth } from '../firebase.config';
 
 // Helper to get current user ID
@@ -29,7 +29,7 @@ export const authAPI = {
 
 // Listings API
 export const listingsAPI = {
-    getAll: (params) => listingService.getAll(params?.category).then(data => ({ data })),
+    getAll: (params) => listingService.getAll(params?.category, params?.search).then(data => ({ data })),
     getOne: (id) => listingService.getOne(id).then(data => ({ data })), // Component expects { data: ... }
     create: (listingData) => listingService.create(listingData, getCurrentUserId()).then(res => ({ data: res })),
     update: (id, listingData) => listingService.update(id, listingData).then(res => ({ data: res })),
@@ -46,13 +46,23 @@ export const bidsAPI = {
     updateStatus: (id, status) => bidService.updateStatus(id, status).then(res => ({ data: res }))
 };
 
+// Chat API
+export const chatAPI = {
+    createConversation: (participants) => chatService.createConversation(participants).then(res => ({ data: res })),
+    sendMessage: (conversationId, senderId, text) => chatService.sendMessage(conversationId, senderId, text).then(res => ({ data: res })),
+    subscribeToMessages: (conversationId, callback) => chatService.subscribeToMessages(conversationId, callback),
+    getConversations: () => chatService.getConversations(getCurrentUserId()).then(data => ({ data })),
+    subscribeToConversations: (callback) => chatService.subscribeToConversations(getCurrentUserId(), callback)
+};
+
 // Admin API
 
 
 const api = {
     authAPI,
     listingsAPI,
-    bidsAPI
+    bidsAPI,
+    chatAPI
 };
 
 export default api;

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { listingsAPI } from '../services/api';
 import { resizeImage } from '../utils/imageUtils';
 import { MIN_DESC_LENGTH, MAX_DESC_LENGTH } from '../utils/validation';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 
 const CreateListing = () => {
 
     const [formData, setFormData] = useState({
         title: '',
+        location: '',
         description: '',
         category: '',
         price: '',
@@ -15,7 +17,8 @@ const CreateListing = () => {
     });
     const [loading, setLoading] = useState(false);
     const [imageProcessing, setImageProcessing] = useState(false);
-    const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
+    const [submitError, setSubmitError] = useState('');
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -25,70 +28,108 @@ const CreateListing = () => {
             [name]: value
         }));
 
-        if (name === 'price') {
-            const priceValue = parseFloat(value);
-            // Check if value is not empty and invalid
-            if (value !== '' && (isNaN(priceValue) || priceValue <= 0)) {
-                setError('Invalid price');
-            } else {
-                // Clear error if it's currently showing the price error
-                if (error === 'Invalid price') {
-                    setError('');
-                }
-            }
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
         }
 
-        if (name === 'description') {
-            if (value.length < MIN_DESC_LENGTH) {
-                setError(`Description must be at least ${MIN_DESC_LENGTH} characters`);
-            } else if (value.length > MAX_DESC_LENGTH) {
-                setError(`Description cannot exceed ${MAX_DESC_LENGTH} characters`);
-            } else {
-                if (error && error.includes('Description')) {
-                    setError('');
-                }
+        // Real-time price validation
+        if (name === 'price' && value !== '') {
+            const priceValue = parseFloat(value);
+            if (isNaN(priceValue) || priceValue <= 0) {
+                setErrors(prev => ({ ...prev, price: 'Price must be a positive number' }));
+            } else if (priceValue < 1) {
+                setErrors(prev => ({ ...prev, price: 'Price must be at least ₹1' }));
+            } else if (priceValue > 100000000) {
+                setErrors(prev => ({ ...prev, price: 'Price cannot exceed ₹10,00,00,000' }));
             }
+        }
+    };
+
+    const handleLocationChange = (newLocation) => {
+        setFormData(prev => ({
+            ...prev,
+            location: newLocation
+        }));
+        if (errors.location) {
+            setErrors(prev => ({ ...prev, location: '' }));
         }
     };
 
     const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
+            if (formData.images.length >= 3) {
+                setErrors(prev => ({ ...prev, images: "You can only upload up to 3 images." }));
+                return;
+            }
+
             setImageProcessing(true);
-            setError('');
+            setErrors(prev => ({ ...prev, images: '' })); // Clear image error
             try {
                 // Aggressive resize: 600px max, 0.6 quality to ensure fast upload
                 const resizedImage = await resizeImage(file, 600, 0.6);
                 setFormData(prev => ({
                     ...prev,
-                    images: [resizedImage]
+                    images: [...prev.images, resizedImage]
                 }));
             } catch (err) {
                 console.error("Error resizing image:", err);
-                setError("Failed to process image. Please try another one.");
+                setErrors(prev => ({ ...prev, images: "Failed to process image. Please try another one." }));
             } finally {
                 setImageProcessing(false);
+                // Reset file input
+                e.target.value = '';
             }
         }
     };
 
+    const handleRemoveImage = (indexToRemove) => {
+        setFormData(prev => ({
+            ...prev,
+            images: prev.images.filter((_, index) => index !== indexToRemove)
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        setSubmitError('');
+        const newErrors = {};
 
+        // Validation
         if (formData.images.length === 0) {
-            setError('Please upload at least one image of your item');
-            return;
+            newErrors.images = 'Please upload at least one image of your item';
+        }
+
+        if (!formData.location || formData.location.trim() === '') {
+            newErrors.location = 'Please enter a location';
+        }
+
+        if (!formData.title || formData.title.trim() === '') {
+            newErrors.title = 'Title is required';
+        }
+
+        if (!formData.category || formData.category === '') {
+            newErrors.category = 'Category is required';
         }
 
         const priceValue = parseFloat(formData.price);
         if (isNaN(priceValue) || priceValue <= 0) {
-            setError('Invalid price');
-            return;
+            newErrors.price = 'Price must be a positive number';
+        } else if (priceValue < 1) {
+            newErrors.price = 'Price must be at least ₹1';
+        } else if (priceValue > 100000000) {
+            newErrors.price = 'Price cannot exceed ₹10,00,00,000';
         }
 
-        if (formData.description.length < MIN_DESC_LENGTH || formData.description.length > MAX_DESC_LENGTH) {
-            setError(`Description must be between ${MIN_DESC_LENGTH} and ${MAX_DESC_LENGTH} characters`);
+        if (formData.description.length < MIN_DESC_LENGTH) {
+            newErrors.description = `Description must be at least ${MIN_DESC_LENGTH} characters`;
+        } else if (formData.description.length > MAX_DESC_LENGTH) {
+            newErrors.description = `Description cannot exceed ${MAX_DESC_LENGTH} characters`;
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
@@ -117,11 +158,11 @@ const CreateListing = () => {
 
             // Helpful messages for common Firestore errors
             if (errorMessage.includes('storage/object-not-found') || errorMessage.includes('resource-exhausted')) {
-                setError("The image is too large or connection failed. Please try a smaller image.");
+                setSubmitError("The image is too large or connection failed. Please try a smaller image.");
             } else if (errorMessage.includes('permission-denied')) {
-                setError("You don't have permission to create listings. Please try logging in again.");
+                setSubmitError("You don't have permission to create listings. Please try logging in again.");
             } else {
-                setError(errorMessage);
+                setSubmitError(errorMessage);
             }
         } finally {
             setLoading(false);
@@ -137,9 +178,9 @@ const CreateListing = () => {
 
 
 
-                    {error && !error.includes('Invalid price') && !error.includes('Description') && !error.includes('Please upload') && (
+                    {submitError && (
                         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-                            {error}
+                            {submitError}
                         </div>
                     )}
 
@@ -156,6 +197,19 @@ const CreateListing = () => {
                                 placeholder="Enter item name"
                                 required
                             />
+                            {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+                        </div>
+
+                        {/* Location */}
+                        <div>
+                            <label className="block text-base font-semibold mb-2 text-black">Location</label>
+                            <LocationAutocomplete
+                                value={formData.location}
+                                onChange={handleLocationChange}
+                                placeholder="e.g. New York, NY"
+                                required={true}
+                            />
+                            {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
                         </div>
 
                         {/* Category */}
@@ -183,6 +237,7 @@ const CreateListing = () => {
                                     </svg>
                                 </div>
                             </div>
+                            {errors.category && <p className="text-red-500 text-sm mt-1">{errors.category}</p>}
                         </div>
 
                         {/* Description */}
@@ -200,8 +255,8 @@ const CreateListing = () => {
                                 maxLength={MAX_DESC_LENGTH}
                             />
                             <div className="flex justify-between items-start mt-1">
-                                {error && error.includes('Description') ? (
-                                    <p className="text-red-500 text-sm">{error}</p>
+                                {errors.description ? (
+                                    <p className="text-red-500 text-sm">{errors.description}</p>
                                 ) : (
                                     <span></span>
                                 )}
@@ -213,50 +268,82 @@ const CreateListing = () => {
 
                         {/* Base Value */}
                         <div>
-                            <label className="block text-base font-semibold mb-2 text-black">Base Value</label>
+                            <label className="block text-base font-semibold mb-2 text-black">Base Value (₹)</label>
                             <input
                                 type="number"
                                 name="price"
                                 value={formData.price}
                                 onChange={handleChange}
+                                onKeyDown={(e) => {
+                                    // Prevent minus sign, plus sign, and 'e' (exponential notation)
+                                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                min="1"
+                                max="100000000"
+                                step="1"
                                 className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 required
                             />
-                            {error && error.includes('Invalid price') && (
-                                <p className="text-red-500 text-sm mt-1">{error}</p>
+                            {errors.price && (
+                                <p className="text-red-500 text-sm mt-1">{errors.price}</p>
                             )}
                         </div>
 
                         {/* Upload Image */}
                         <div>
-                            <label className="block text-base font-semibold mb-2 text-black">Upload image</label>
-                            <div className="bg-white rounded-lg p-1 flex items-center mb-2">
-                                <label className={`cursor-pointer bg-gray-200 hover:bg-gray-300 text-black text-sm font-medium py-1 px-3 rounded shadow-sm m-1 transition-colors border border-gray-300 ${imageProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                    {imageProcessing ? 'Processing...' : 'Choose File'}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                        className="hidden"
-                                        disabled={imageProcessing}
-                                    />
-                                </label>
-                                <span className="text-gray-500 text-sm ml-2">
-                                    {imageProcessing ? 'Optimizing image...' : (formData.images.length > 0 ? 'Image ready' : 'No file chosen')}
-                                </span>
+                            <label className="block text-base font-semibold mb-2 text-black">Upload images (Max 3)</label>
+
+                            <div className="flex flex-wrap gap-4 mb-2">
+                                {/* Image Previews */}
+                                {formData.images.map((img, index) => (
+                                    <div key={index} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-300 bg-white group">
+                                        <img
+                                            src={img}
+                                            alt={`Preview ${index + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveImage(index)}
+                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+                                            title="Remove image"
+                                        >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {/* Add Button */}
+                                {formData.images.length < 3 && (
+                                    <label className={`w-24 h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-black hover:bg-gray-50 transition-all ${imageProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        {imageProcessing ? (
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
+                                        ) : (
+                                            <>
+                                                <svg className="w-8 h-8 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                                </svg>
+                                                <span className="text-xs text-gray-500 font-medium">Add Photo</span>
+                                            </>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                            className="hidden"
+                                            disabled={imageProcessing}
+                                        />
+                                    </label>
+                                )}
                             </div>
-                            {/* Image Preview */}
-                            {!imageProcessing && formData.images.length > 0 && (
-                                <div className="mt-2 rounded-lg overflow-hidden border border-gray-300 w-32 h-32 bg-white">
-                                    <img
-                                        src={formData.images[0]}
-                                        alt="Preview"
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                            )}
-                            {error && error.includes('Please upload') && (
-                                <p className="text-red-500 text-sm mt-1">{error}</p>
+                            <p className="text-gray-500 text-xs text-right">{formData.images.length}/3 images</p>
+
+                            {errors.images && (
+                                <p className="text-red-500 text-sm mt-1">{errors.images}</p>
                             )}
                         </div>
 

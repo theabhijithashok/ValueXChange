@@ -3,12 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import { listingService, bidService } from '../services/firestore';
 import { MIN_DESC_LENGTH, MAX_DESC_LENGTH } from '../utils/validation';
 import { Link, useLocation } from 'react-router-dom';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 
 const Profile = () => {
     const { user, updateProfile } = useAuth();
     const location = useLocation();
     const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profile');
     const [username, setUsername] = useState(user?.username || '');
+    const [usernameError, setUsernameError] = useState('');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -50,18 +52,40 @@ const Profile = () => {
         }
     };
 
+    const validateUsername = (value) => {
+        if (value.trim().length < 3) {
+            return 'Username must be at least 3 characters long.';
+        }
+        if (value.length > 20) {
+            return 'Username cannot exceed 20 characters.';
+        }
+        // Only allow alphanumeric characters and underscores
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+            return 'Username can only contain letters, numbers, and underscores.';
+        }
+        return '';
+    };
+
+    const handleUsernameChange = (e) => {
+        const value = e.target.value;
+        setUsername(value);
+        const error = validateUsername(value);
+        setUsernameError(error);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setMessage('');
         setError('');
-        setLoading(true);
 
-        if (username.trim().length < 3) {
-            setError('Username must be at least 3 characters long.');
-            setLoading(false);
+        // Final validation check
+        const validationError = validateUsername(username);
+        if (validationError) {
+            setUsernameError(validationError);
             return;
         }
 
+        setLoading(true);
         const result = await updateProfile({ username });
 
         if (result.success) {
@@ -103,15 +127,33 @@ const Profile = () => {
             [name]: value
         }));
 
+        // Clear previous errors when user starts typing
+        setEditError('');
+
+        if (name === 'title') {
+            if (value.trim().length < 3) {
+                setEditError('Title must be at least 3 characters');
+            } else if (value.length > 100) {
+                setEditError('Title cannot exceed 100 characters');
+            }
+        }
+
         if (name === 'price') {
+            // Only allow positive numbers
             const priceValue = parseFloat(value);
-            // Check if value is not empty and invalid
-            if (value !== '' && (isNaN(priceValue) || priceValue <= 0)) {
-                setEditError('Invalid price');
-            } else {
-                // Clear error if it's currently showing the price error
-                if (editError === 'Invalid price') {
-                    setEditError('');
+
+            if (value !== '') {
+                // Check if it's a valid number
+                if (isNaN(priceValue) || priceValue <= 0) {
+                    setEditError('Price must be a positive number');
+                }
+                // Minimum price: ₹1
+                else if (priceValue < 1) {
+                    setEditError('Price must be at least ₹1');
+                }
+                // Maximum price: ₹10 crores (reasonable upper limit for marketplace)
+                else if (priceValue > 100000000) {
+                    setEditError('Price cannot exceed ₹10,00,00,000');
                 }
             }
         }
@@ -121,12 +163,16 @@ const Profile = () => {
                 setEditError(`Description must be at least ${MIN_DESC_LENGTH} characters`);
             } else if (value.length > MAX_DESC_LENGTH) {
                 setEditError(`Description cannot exceed ${MAX_DESC_LENGTH} characters`);
-            } else {
-                if (editError && editError.includes('Description')) {
-                    setEditError('');
-                }
             }
         }
+    };
+
+    const handleEditLocationChange = (newLocation) => {
+        setEditingListing(prev => ({
+            ...prev,
+            location: newLocation
+        }));
+        setEditError('');
     };
 
     const handleUpdateListing = async (e) => {
@@ -135,9 +181,34 @@ const Profile = () => {
         setEditError('');
 
         // Final Validation before submit
+        if (editingListing.title.trim().length < 3) {
+            setEditError('Title must be at least 3 characters');
+            return;
+        }
+
+        if (editingListing.title.length > 100) {
+            setEditError('Title cannot exceed 100 characters');
+            return;
+        }
+
+        if (!editingListing.location || editingListing.location.trim() === '') {
+            setEditError('Please enter a location');
+            return;
+        }
+
         const priceValue = parseFloat(editingListing.price);
         if (isNaN(priceValue) || priceValue <= 0) {
-            setEditError('Invalid price');
+            setEditError('Price must be a positive number');
+            return;
+        }
+
+        if (priceValue < 1) {
+            setEditError('Price must be at least ₹1');
+            return;
+        }
+
+        if (priceValue > 100000000) {
+            setEditError('Price cannot exceed ₹10,00,00,000');
             return;
         }
 
@@ -148,10 +219,10 @@ const Profile = () => {
 
         setLoading(true);
         try {
-            const { id, title, price, category, description } = editingListing;
-            await listingService.update(id, { title, price, category, description });
+            const { id, title, location, price, category, description } = editingListing;
+            await listingService.update(id, { title, location, price, category, description });
 
-            setMyListings(prev => prev.map(l => l.id === id ? { ...l, title, price, category, description } : l));
+            setMyListings(prev => prev.map(l => l.id === id ? { ...l, title, location, price, category, description } : l));
             setEditingListing(null);
             setMessage("Listing updated successfully!");
         } catch (err) {
@@ -255,19 +326,25 @@ const Profile = () => {
                                         <input
                                             type="text"
                                             value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
-                                            className="input-field"
+                                            onChange={handleUsernameChange}
+                                            className={`input-field ${usernameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                             placeholder="Enter your display name"
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            This will be displayed on your listings and bids.
-                                        </p>
+                                        {usernameError ? (
+                                            <p className="text-xs text-red-500 mt-1">
+                                                {usernameError}
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                This will be displayed on your listings and bids.
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="pt-4">
                                         <button
                                             type="submit"
-                                            disabled={loading}
-                                            className="btn btn-primary w-full"
+                                            disabled={loading || !!usernameError || username.trim().length === 0}
+                                            className="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {loading ? 'Saving...' : 'Save Changes'}
                                         </button>
@@ -357,21 +434,46 @@ const Profile = () => {
                                                 name="title"
                                                 value={editingListing.title || ''}
                                                 onChange={handleEditChange}
-                                                className="input-field"
+                                                className={`input-field ${editError && editError.includes('Title') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                                 required
                                             />
+                                            {editError && editError.includes('Title') && (
+                                                <p className="text-red-500 text-sm mt-1">{editError}</p>
+                                            )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium mb-1">Price</label>
+                                            <label className="block text-sm font-medium mb-1">Location</label>
+                                            <LocationAutocomplete
+                                                value={editingListing.location || ''}
+                                                onChange={handleEditLocationChange}
+                                                placeholder="e.g. New York, NY"
+                                                className="input-field"
+                                                required={true}
+                                            />
+                                            {editError && editError.includes('location') && (
+                                                <p className="text-red-500 text-sm mt-1">{editError}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Price (₹)</label>
                                             <input
                                                 type="number"
                                                 name="price"
                                                 value={editingListing.price || ''}
                                                 onChange={handleEditChange}
-                                                className="input-field"
+                                                onKeyDown={(e) => {
+                                                    // Prevent minus sign, plus sign, and 'e' (exponential notation)
+                                                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                                min="1"
+                                                max="100000000"
+                                                step="1"
+                                                className={`input-field [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${editError && editError.includes('Price') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                                 required
                                             />
-                                            {editError && editError.includes('Invalid price') && (
+                                            {editError && editError.includes('Price') && (
                                                 <p className="text-red-500 text-sm mt-1">{editError}</p>
                                             )}
                                         </div>
@@ -400,7 +502,7 @@ const Profile = () => {
                                                 name="description"
                                                 value={editingListing.description || ''}
                                                 onChange={handleEditChange}
-                                                className="input-field min-h-[100px]"
+                                                className={`input-field min-h-[100px] ${editError && editError.includes('Description') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                                 required
                                                 minLength={MIN_DESC_LENGTH}
                                                 maxLength={MAX_DESC_LENGTH}
@@ -427,8 +529,8 @@ const Profile = () => {
                                             </button>
                                             <button
                                                 type="submit"
-                                                disabled={loading}
-                                                className="btn btn-primary"
+                                                disabled={loading || !!editError}
+                                                className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {loading ? 'Saving...' : 'Save Changes'}
                                             </button>

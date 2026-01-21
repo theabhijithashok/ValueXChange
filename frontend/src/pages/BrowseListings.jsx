@@ -77,24 +77,38 @@ const BrowseListings = () => {
     return (
         <div className="min-h-screen bg-gray-50 pt-24 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* <h1 className="text-4xl font-bold mb-8">Browse Listings</h1> */ /* Removed header to better match mockup if needed, or keeping it but checking spacing */}
-
                 {/* Search Bar */}
                 <div className="mb-12">
-                    <div className="flex max-w-lg">
-                        <input
-                            type="text"
-                            placeholder=""
-                            value={filters.search}
-                            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                            className="flex-1 bg-[#D9D9D9] border border-black border-r-0 px-4 py-2 outline-none"
-                        />
-                        <button className="bg-black text-white px-6 py-2 border border-black flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            Search
-                        </button>
+                    <div className="flex max-w-lg gap-3">
+                        <div className="relative flex-1">
+                            <input
+                                type="text"
+                                placeholder='Search by title, description, or category...'
+                                value={filters.search}
+                                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                                className="w-full bg-[#D9D9D9] border border-black rounded-lg px-4 py-2 pr-12 outline-none placeholder:text-gray-500 placeholder:opacity-60"
+                            />
+                            <button
+                                onClick={fetchListings}
+                                className="absolute right-1 top-1/2 -translate-y-1/2 bg-black text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
+                                aria-label="Search"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

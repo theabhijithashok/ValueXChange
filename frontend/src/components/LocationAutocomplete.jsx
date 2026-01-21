@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const LocationAutocomplete = ({ value, onChange, placeholder, required }) => {
+const LocationAutocomplete = ({ value, onChange, placeholder, required, className }) => {
     const [inputValue, setInputValue] = useState(value || '');
     const [suggestions, setSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +86,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, required }) => {
                 onFocus={() => {
                     if (suggestions.length > 0) setShowSuggestions(true);
                 }}
-                className="w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white placeholder-gray-400"
+                className={className || "w-full px-4 py-3 rounded-lg border-none focus:ring-0 text-gray-700 bg-white placeholder-gray-400"}
                 placeholder={placeholder}
                 required={required}
             />

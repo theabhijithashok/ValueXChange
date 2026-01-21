@@ -59,7 +59,7 @@ const Navbar = () => {
                                     <span className="text-gray-400">|</span>
                                     <span className="text-lg text-gray-800">Admin</span>
                                 </div>
-                                <button onClick={handleLogout} className="btn btn-secondary text-sm py-2 bg-white border border-black text-black hover:bg-gray-100">
+                                <button onClick={handleLogout} className="btn btn-secondary text-sm py-2 bg-black text-white hover:bg-gray-800">
                                     Logout
                                 </button>
                             </>
@@ -71,46 +71,97 @@ const Navbar = () => {
 
                                 {isAuthenticated ? (
                                     <div className="flex items-center gap-4">
-                                        <Link to="/home" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/home"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${location.pathname === '/home'
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
+                                        >
                                             Home
                                         </Link>
-                                        <Link to="/browse" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/browse"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${location.pathname === '/browse'
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
+                                        >
                                             Browse Listings
                                         </Link>
-                                        <Link to="/wishlist" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/wishlist"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${location.pathname === '/wishlist'
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
+                                        >
                                             Wishlist
                                         </Link>
 
                                         <button
                                             onClick={() => setIsChatOpen(true)}
-                                            className="text-sm text-gray-700 hover:text-black transition-colors"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${isChatOpen
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
                                         >
                                             Chat
                                         </button>
 
 
-                                        <Link to="/profile" className="flex items-center gap-2 group">
-                                            <span className="text-sm text-gray-600 group-hover:text-black transition-colors">
+                                        <Link
+                                            to="/profile"
+                                            className={`flex items-center gap-2 group pb-1 border-b-2 ${location.pathname === '/profile'
+                                                    ? 'border-black'
+                                                    : 'border-transparent hover:border-gray-300'
+                                                }`}
+                                        >
+                                            <span className={`text-sm transition-colors ${location.pathname === '/profile'
+                                                    ? 'text-black font-medium'
+                                                    : 'text-gray-600 group-hover:text-black'
+                                                }`}>
                                                 Welcome, {user?.username}
                                             </span>
 
                                         </Link>
-                                        <button onClick={handleLogout} className="btn btn-secondary text-sm py-2">
+                                        <button onClick={handleLogout} className="btn btn-secondary text-sm py-2 bg-black text-white hover:bg-gray-800">
                                             Logout
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-8">
-                                        <Link to="/" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${location.pathname === '/'
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
+                                        >
                                             Home
                                         </Link>
-                                        <Link to="/#how-it-works" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/#how-it-works"
+                                            className="text-sm text-gray-700 hover:text-black transition-colors pb-1 border-b-2 border-transparent hover:border-gray-300"
+                                        >
                                             How it works
                                         </Link>
-                                        <Link to="/login" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/login"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${location.pathname === '/login'
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
+                                        >
                                             Login
                                         </Link>
-                                        <Link to="/register" className="text-sm text-gray-700 hover:text-black transition-colors">
+                                        <Link
+                                            to="/register"
+                                            className={`text-sm transition-colors pb-1 border-b-2 ${location.pathname === '/register'
+                                                    ? 'text-black border-black font-medium'
+                                                    : 'text-gray-700 border-transparent hover:text-black hover:border-gray-300'
+                                                }`}
+                                        >
                                             Register
                                         </Link>
                                     </div>

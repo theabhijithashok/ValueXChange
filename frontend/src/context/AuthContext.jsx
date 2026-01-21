@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUserProfile = async (uid, email = '') => {
+    const fetchUserProfile = async (uid, email = '', photoURL = '') => {
         try {
             const userDocRef = doc(db, 'users', uid);
             const userDoc = await getDoc(userDocRef);
@@ -33,18 +33,33 @@ export const AuthProvider = ({ children }) => {
             if (userDoc.exists()) {
                 const data = userDoc.data();
                 // Backfill username if missing
+                let updates = {};
+                let updatedData = { ...data };
+
                 if (!data.username && email) {
                     const generatedUsername = email.split('@')[0];
-                    await updateDoc(userDocRef, { username: generatedUsername });
-                    return { ...data, username: generatedUsername };
+                    updates.username = generatedUsername;
+                    updatedData.username = generatedUsername;
                 }
-                return data;
+
+                // Sync photoURL if provided and different
+                if (photoURL && data.photoURL !== photoURL) {
+                    updates.photoURL = photoURL;
+                    updatedData.photoURL = photoURL;
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    await updateDoc(userDocRef, updates);
+                }
+
+                return updatedData;
             } else if (email) {
                 // Create profile if it doesn't exist
                 const generatedUsername = email.split('@')[0];
                 const newProfile = {
                     email: email,
                     username: generatedUsername,
+                    photoURL: photoURL || '',
                     wishlist: [],
                     createdAt: new Date().toISOString()
                 };
@@ -74,8 +89,8 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                // Pass email to allow generating username if needed
-                const profile = await fetchUserProfile(firebaseUser.uid, firebaseUser.email);
+                // Pass email and photoURL to allow generating username/syncing photo if needed
+                const profile = await fetchUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.photoURL);
                 setUser({ ...firebaseUser, ...profile });
             } else {
                 setUser(null);
@@ -163,6 +178,7 @@ export const AuthProvider = ({ children }) => {
             setUser({
                 ...user,
                 username: user.displayName || user.email.split('@')[0],
+                photoURL: user.photoURL || '',
                 wishlist: [],
                 googleId: user.providerData[0].uid
             });
