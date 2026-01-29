@@ -33,7 +33,7 @@ export const listingsAPI = {
     getOne: (id) => listingService.getOne(id).then(data => ({ data })), // Component expects { data: ... }
     create: (listingData) => listingService.create(listingData, getCurrentUserId()).then(res => ({ data: res })),
     update: (id, listingData) => listingService.update(id, listingData).then(res => ({ data: res })),
-    delete: (id) => listingService.delete(id).then(res => ({ data: res })),
+    delete: (id, reason = null, adminId = null) => listingService.delete(id, reason, adminId).then(res => ({ data: res })),
     getMyListings: () => listingService.getMyListings(getCurrentUserId()).then(data => ({ data })),
     checkConfig: !!import.meta.env.VITE_FIREBASE_API_KEY
 };

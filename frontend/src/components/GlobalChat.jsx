@@ -8,16 +8,13 @@ const GlobalChat = ({ isOpen, onClose }) => {
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
     const [chatLoading, setChatLoading] = useState(false);
 
     useEffect(() => {
         if (!user || !isOpen) return;
 
-        setLoading(true);
         const unsubscribe = chatAPI.subscribeToConversations((realtimeConversations) => {
             setConversations(realtimeConversations);
-            setLoading(false);
         });
 
         return () => {
@@ -69,11 +66,7 @@ const GlobalChat = ({ isOpen, onClose }) => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
-                        {loading ? (
-                            <div className="flex justify-center p-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-                            </div>
-                        ) : conversations.length === 0 ? (
+                        {conversations.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">
                                 <p>No conversations yet.</p>
                             </div>

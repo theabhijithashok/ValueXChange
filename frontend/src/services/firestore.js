@@ -123,18 +123,59 @@ export const listingService = {
     },
 
     // Delete Listing (Move to deletedListings collection)
-    delete: async (id) => {
+    delete: async (id, reason = null, adminId = null) => {
         try {
             const docRef = doc(db, 'listings', id);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
                 const data = docSnap.data();
+
+                // If admin is deleting with a reason, send message to the listing owner
+                if (reason && adminId && data.owner) {
+                    try {
+                        // Create or get conversation between admin and listing owner
+                        const participants = [adminId, data.owner].sort();
+                        const conversationId = participants.join('_');
+                        const conversationRef = doc(db, 'conversations', conversationId);
+                        const conversationSnap = await getDoc(conversationRef);
+
+                        if (!conversationSnap.exists()) {
+                            await setDoc(conversationRef, {
+                                participants: participants,
+                                createdAt: serverTimestamp(),
+                                updatedAt: serverTimestamp(),
+                                lastMessage: ''
+                            });
+                        }
+
+                        // Send automated message
+                        const messageText = `Your listing "${data.title}" has been removed by the admin.\n\nReason: ${reason}`;
+                        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+                        await addDoc(messagesRef, {
+                            senderId: adminId,
+                            text: messageText,
+                            createdAt: serverTimestamp()
+                        });
+
+                        // Update conversation last message
+                        await updateDoc(conversationRef, {
+                            lastMessage: messageText,
+                            updatedAt: serverTimestamp()
+                        });
+                    } catch (msgError) {
+                        console.error("Error sending deletion notification message:", msgError);
+                        // Continue with deletion even if message fails
+                    }
+                }
+
                 // Save to deletedListings collection
                 await setDoc(doc(db, 'deletedListings', id), {
                     ...data,
                     originalId: id,
                     deletedAt: serverTimestamp(),
+                    deletionReason: reason || 'No reason provided',
+                    deletedBy: adminId || 'unknown',
                     status: 'deleted'
                 });
 
@@ -495,7 +536,9 @@ export const chatService = {
     // Subscribe to Conversations (Real-time List)
     subscribeToConversations: (userId, callback) => {
         const conversationsRef = collection(db, 'conversations');
-        const q = query(conversationsRef, where('participants', 'array-contains', userId), orderBy('updatedAt', 'desc'));
+        // Removed orderBy to avoid requiring a composite index
+        // We'll sort client-side instead
+        const q = query(conversationsRef, where('participants', 'array-contains', userId));
 
         return onSnapshot(q, async (snapshot) => {
             // 1. Collect all unique user IDs that need fetching
@@ -561,6 +604,13 @@ export const chatService = {
                     ...rest,
                     otherUser
                 };
+            });
+
+            // 5. Sort client-side by updatedAt (most recent first)
+            conversations.sort((a, b) => {
+                const aTime = a.updatedAt?.seconds || 0;
+                const bTime = b.updatedAt?.seconds || 0;
+                return bTime - aTime;
             });
 
             callback(conversations);

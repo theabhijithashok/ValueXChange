@@ -25,6 +25,22 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const checkUserBlocked = async (uid) => {
+        try {
+            const userDocRef = doc(db, 'users', uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                return userData.status === 'blocked';
+            }
+            return false;
+        } catch (error) {
+            console.error("Error checking user status:", error);
+            return false;
+        }
+    };
+
     const fetchUserProfile = async (uid, email = '', photoURL = '') => {
         try {
             const userDocRef = doc(db, 'users', uid);
@@ -89,6 +105,16 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
+                // Check if user is blocked
+                const isBlocked = await checkUserBlocked(firebaseUser.uid);
+                if (isBlocked) {
+                    // Sign out blocked user immediately
+                    await signOut(auth);
+                    setUser(null);
+                    setLoading(false);
+                    return;
+                }
+
                 // Pass email and photoURL to allow generating username/syncing photo if needed
                 const profile = await fetchUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.photoURL);
                 setUser({ ...firebaseUser, ...profile });
@@ -120,6 +146,17 @@ export const AuthProvider = ({ children }) => {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const firebaseUser = userCredential.user;
+
+            // Check if user is blocked
+            const isBlocked = await checkUserBlocked(firebaseUser.uid);
+            if (isBlocked) {
+                // Sign out immediately if blocked
+                await signOut(auth);
+                return {
+                    success: false,
+                    message: "Your account has been blocked. Please contact support."
+                };
+            }
 
             // Optimistic update: Set minimal user immediately to allow redirect
             // Profile will be auto-fetched by onAuthStateChanged in background
@@ -173,6 +210,17 @@ export const AuthProvider = ({ children }) => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
+
+            // Check if user is blocked
+            const isBlocked = await checkUserBlocked(user.uid);
+            if (isBlocked) {
+                // Sign out immediately if blocked
+                await signOut(auth);
+                return {
+                    success: false,
+                    message: "Your account has been blocked. Please contact support."
+                };
+            }
 
             // Optimistic update
             setUser({
