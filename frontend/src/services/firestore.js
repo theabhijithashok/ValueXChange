@@ -420,6 +420,39 @@ export const userService = {
             console.error("Error updating user status:", error);
             throw error;
         }
+    },
+
+    getPublicProfile: async (userId) => {
+        try {
+            // Fetch user data
+            const userRef = doc(db, 'users', userId);
+            const userSnap = await getDoc(userRef);
+
+            if (!userSnap.exists()) {
+                throw new Error("User not found");
+            }
+
+            const userData = userSnap.data();
+
+            // Fetch user's active listings
+            const q = query(listingsRef, where('owner', '==', userId), orderBy('createdAt', 'desc'));
+            const listingsSnap = await getDocs(q);
+            const listings = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Return public profile data (exclude sensitive info)
+            return {
+                id: userId,
+                username: userData.username,
+                photoURL: userData.photoURL || null,
+                location: userData.location || null,
+                createdAt: userData.createdAt,
+                listingsCount: listings.length,
+                listings: listings
+            };
+        } catch (error) {
+            console.error("Error getting public profile:", error);
+            throw error;
+        }
     }
 };
 

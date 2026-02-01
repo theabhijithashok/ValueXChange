@@ -5,6 +5,7 @@ import { getRegistrationErrors } from '../utils/validation';
 import banner from '../assets/banner.png';
 
 
+
 const Register = () => {
     const [formData, setFormData] = useState({
         username: '',
@@ -121,6 +122,7 @@ const Register = () => {
                                 <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
                             )}
                         </div>
+
 
                         <div>
                             <label className="block text-sm font-medium mb-2">Password</label>

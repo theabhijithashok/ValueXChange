@@ -24,6 +24,9 @@ export const authAPI = {
     },
     removeFromWishlist: async (listingId) => {
         return userService.removeFromWishlist(getCurrentUserId(), listingId).then(res => ({ data: res }));
+    },
+    getPublicProfile: async (userId) => {
+        return userService.getPublicProfile(userId).then(data => ({ data }));
     }
 };
 

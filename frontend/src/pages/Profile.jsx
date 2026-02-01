@@ -10,6 +10,7 @@ const Profile = () => {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profile');
     const [username, setUsername] = useState(user?.username || '');
+    const [userLocation, setUserLocation] = useState(user?.location || '');
     const [usernameError, setUsernameError] = useState('');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
@@ -20,6 +21,14 @@ const Profile = () => {
     const [receivedOffers, setReceivedOffers] = useState([]);
     const [editingListing, setEditingListing] = useState(null); // State for the listing being edited
     const [editError, setEditError] = useState(''); // State for edit modal validation errors
+
+    // Sync state with user data only when user object changes
+    useEffect(() => {
+        if (user) {
+            setUsername(user.username || '');
+            setUserLocation(user.location || '');
+        }
+    }, [user?.uid]); // Only re-run when user ID changes, not on every user object update
 
     useEffect(() => {
         if (user) {
@@ -86,14 +95,22 @@ const Profile = () => {
         }
 
         setLoading(true);
-        const result = await updateProfile({ username });
 
-        if (result.success) {
-            setMessage('Profile updated successfully!');
-        } else {
-            setError('Failed to update profile: ' + result.message);
+        try {
+            // Update username and location, keep Google photo
+            const result = await updateProfile({ username, location: userLocation });
+
+            if (result.success) {
+                setMessage('Profile updated successfully!');
+            } else {
+                setError('Failed to update profile: ' + result.message);
+            }
+        } catch (err) {
+            console.error('Error updating profile:', err);
+            setError('Failed to upload photo. Please try again.');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleDeleteListing = async (listingId) => {
@@ -234,7 +251,7 @@ const Profile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+        <div className="min-h-screen bg-gray-50 pt-20 sm:pt-24 pb-12">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                     {/* Tabs Header */}
@@ -242,7 +259,7 @@ const Profile = () => {
                         <nav className="flex -mb-px">
                             <button
                                 onClick={() => setActiveTab('profile')}
-                                className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors ${activeTab === 'profile'
+                                className={`w-1/3 py-3 sm:py-4 px-1 text-center border-b-2 font-medium text-xs sm:text-sm transition-colors ${activeTab === 'profile'
                                     ? 'border-black text-black'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
@@ -251,26 +268,28 @@ const Profile = () => {
                             </button>
                             <button
                                 onClick={() => setActiveTab('listings')}
-                                className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors ${activeTab === 'listings'
+                                className={`w-1/3 py-3 sm:py-4 px-1 text-center border-b-2 font-medium text-xs sm:text-sm transition-colors ${activeTab === 'listings'
                                     ? 'border-black text-black'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
-                                My Listings
+                                <span className="hidden sm:inline">My Listings</span>
+                                <span className="sm:hidden">Listings</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('offers')}
-                                className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors ${activeTab === 'offers'
+                                className={`w-1/3 py-3 sm:py-4 px-1 text-center border-b-2 font-medium text-xs sm:text-sm transition-colors ${activeTab === 'offers'
                                     ? 'border-black text-black'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
-                                Received Offers
+                                <span className="hidden sm:inline">Received Offers</span>
+                                <span className="sm:hidden">Offers</span>
                             </button>
                         </nav>
                     </div>
 
-                    <div className="p-8">
+                    <div className="p-4 sm:p-6 md:p-8">
                         {/* Global Messages */}
                         {message && (
                             <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
@@ -287,10 +306,10 @@ const Profile = () => {
                         {activeTab === 'profile' && (
                             <div className="max-w-xl mx-auto">
                                 {/* Dashboard Overview */}
-                                <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
                                     <div
                                         onClick={() => setActiveTab('listings')}
-                                        className="bg-blue-50 p-6 rounded-xl border border-blue-100 cursor-pointer hover:shadow-md transition-all group"
+                                        className="bg-blue-50 p-4 sm:p-6 rounded-xl border border-blue-100 cursor-pointer hover:shadow-md transition-all group"
                                     >
                                         <h3 className="text-blue-800 font-semibold mb-1 group-hover:text-blue-900">My Listings</h3>
                                         <p className="text-3xl font-bold text-blue-900">{myListings.length}</p>
@@ -300,7 +319,7 @@ const Profile = () => {
                                     </div>
                                     <div
                                         onClick={() => setActiveTab('offers')}
-                                        className="bg-purple-50 p-6 rounded-xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
+                                        className="bg-purple-50 p-4 sm:p-6 rounded-xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
                                     >
                                         <h3 className="text-purple-800 font-semibold mb-1 group-hover:text-purple-900">Received Offers</h3>
                                         <p className="text-3xl font-bold text-purple-900">{receivedOffers.length}</p>
@@ -310,7 +329,7 @@ const Profile = () => {
                                     </div>
                                 </div>
 
-                                <h2 className="text-2xl font-bold mb-6">Edit Profile</h2>
+                                <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Edit Profile</h2>
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
                                         <label className="block text-sm font-medium mb-2 text-gray-500">Email</label>
@@ -321,8 +340,14 @@ const Profile = () => {
                                             className="input-field bg-gray-100 text-gray-500 cursor-not-allowed"
                                         />
                                     </div>
+
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Username</label>
+                                        <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                                            Username
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </label>
                                         <input
                                             type="text"
                                             value={username}
@@ -340,6 +365,24 @@ const Profile = () => {
                                             </p>
                                         )}
                                     </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                                            Location (Optional)
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </label>
+                                        <LocationAutocomplete
+                                            value={userLocation}
+                                            onChange={(value) => setUserLocation(value)}
+                                            className="input-field"
+                                            placeholder="Enter your city or location"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            This will be shown on your public profile so buyers know where you're located.
+                                        </p>
+                                    </div>
                                     <div className="pt-4">
                                         <button
                                             type="submit"
@@ -356,7 +399,7 @@ const Profile = () => {
                         {/* TAB 2: My Listings */}
                         {activeTab === 'listings' && (
                             <div>
-                                <h2 className="text-2xl font-bold mb-6">My Active Listings</h2>
+                                <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">My Active Listings</h2>
                                 {loading ? (
                                     <p className="text-gray-500">Loading listings...</p>
                                 ) : myListings.length === 0 ? (
@@ -365,12 +408,12 @@ const Profile = () => {
                                         <Link to="/create-listing" className="btn btn-primary">Create Listing</Link>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-3 sm:space-y-4">
                                         {myListings.map(listing => (
-                                            <div key={listing.id} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-white hover:shadow-sm transition-shadow">
-                                                <div className="flex items-center gap-4">
+                                            <div key={listing.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 bg-white hover:shadow-sm transition-shadow">
+                                                <div className="flex items-center gap-3 sm:gap-4">
                                                     {/* Image Preview */}
-                                                    <div className="h-24 w-24 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                                                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
                                                         {listing.images && listing.images.length > 0 ? (
                                                             <img
                                                                 src={listing.images[0]}
@@ -382,8 +425,8 @@ const Profile = () => {
                                                         )}
                                                     </div>
 
-                                                    <div>
-                                                        <h3 className="font-bold text-lg mb-1">{listing.title}</h3>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-base sm:text-lg mb-1 truncate">{listing.title}</h3>
                                                         <div className="space-y-1">
                                                             <p className="text-sm text-gray-500">
                                                                 Price: <span className="text-black font-medium">₹{listing.price}</span>
@@ -397,19 +440,19 @@ const Profile = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col gap-2">
+                                                <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
                                                     <button
                                                         onClick={() => {
                                                             setEditingListing(listing);
                                                             setEditError('');
                                                         }}
-                                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium px-4 py-2 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                                        className="flex-1 sm:flex-none text-blue-600 hover:text-blue-800 text-sm font-medium px-3 sm:px-4 py-2 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteListing(listing.id)}
-                                                        className="text-red-600 hover:text-red-800 text-sm font-medium px-4 py-2 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                                        className="flex-1 sm:flex-none text-red-600 hover:text-red-800 text-sm font-medium px-3 sm:px-4 py-2 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
                                                     >
                                                         Delete
                                                     </button>
@@ -424,8 +467,8 @@ const Profile = () => {
                         {/* Edit Listing Modal */}
                         {editingListing && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-                                    <h3 className="text-xl font-bold mb-4">Edit Listing</h3>
+                                <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+                                    <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Edit Listing</h3>
                                     <form onSubmit={handleUpdateListing} className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium mb-1">Title</label>
@@ -543,16 +586,16 @@ const Profile = () => {
                         {/* TAB 3: Received Offers */}
                         {activeTab === 'offers' && (
                             <div>
-                                <h2 className="text-2xl font-bold mb-6">Received Offers</h2>
+                                <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Received Offers</h2>
                                 {loading ? (
                                     <p className="text-gray-500">Loading offers...</p>
                                 ) : receivedOffers.length === 0 ? (
                                     <p className="text-gray-500 text-center py-8">No offers received yet.</p>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-3 sm:space-y-4">
                                         {receivedOffers.map(offer => (
-                                            <div key={offer.id} className="border border-gray-200 rounded-lg p-6 bg-white">
-                                                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                                            <div key={offer.id} className="border border-gray-200 rounded-lg p-4 sm:p-6 bg-white">
+                                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4">
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <span className="font-medium text-gray-900">{offer.bidder?.username || 'Unknown User'}</span>
@@ -566,7 +609,7 @@ const Profile = () => {
                                                         <p className="text-sm text-gray-500">{offer.message}</p>
                                                     </div>
 
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-2 sm:gap-3">
                                                         {offer.status === 'pending' ? (
                                                             <>
                                                                 <button

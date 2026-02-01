@@ -75,11 +75,11 @@ const BrowseListings = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+        <div className="min-h-screen bg-gray-50 pt-20 sm:pt-24 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Search Bar */}
-                <div className="mb-12">
-                    <div className="flex max-w-lg gap-3">
+                <div className="mb-8 sm:mb-12">
+                    <div className="flex w-full sm:max-w-lg gap-3">
                         <div className="relative flex-1">
                             <input
                                 type="text"
@@ -129,7 +129,7 @@ const BrowseListings = () => {
                     <>
                         {/* Listings Grid */}
                         {listings.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                                 {listings.map((listing) => (
                                     <ListingCard
                                         key={listing.id}

@@ -5,6 +5,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, required, classNam
     const [suggestions, setSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
     const wrapperRef = useRef(null);
 
     // Sync internal state with external value prop
@@ -47,22 +48,29 @@ const LocationAutocomplete = ({ value, onChange, placeholder, required, classNam
         }
     };
 
-    // Debounce the API call
+    // Debounce the API call - only when user has interacted
     useEffect(() => {
+        if (!hasUserInteracted) return;
+
         const timer = setTimeout(() => {
             fetchSuggestions(inputValue);
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [inputValue]);
+    }, [inputValue, hasUserInteracted]);
 
     const handleInputChange = (e) => {
         const val = e.target.value;
         setInputValue(val);
+        setHasUserInteracted(true); // Mark that user has started typing
         onChange(val); // Propagate text change immediately
     };
 
-    const handleSelectSuggestion = (suggestion) => {
+    const handleSelectSuggestion = (e, suggestion) => {
+        // Prevent form submission and event bubbling
+        e.preventDefault();
+        e.stopPropagation();
+
         // Format the address nicely
         // Use display_name or construct from address parts
         // display_name is usually good but long.
@@ -102,7 +110,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, required, classNam
                     {suggestions.map((item) => (
                         <li
                             key={item.place_id}
-                            onClick={() => handleSelectSuggestion(item)}
+                            onClick={(e) => handleSelectSuggestion(e, item)}
                             className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-none text-sm text-gray-700 flex flex-col"
                         >
                             <span className="font-medium text-gray-900">{item.display_name.split(',')[0]}</span>

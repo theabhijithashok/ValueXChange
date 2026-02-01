@@ -52,12 +52,12 @@ const Wishlist = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+        <div className="min-h-screen bg-gray-50 pt-20 sm:pt-24 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <h1 className="text-4xl font-bold mb-8">My Wishlist</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 sm:mb-8">My Wishlist</h1>
 
                 {wishlistItems.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {wishlistItems.map((listing) => (
                             <ListingCard
                                 key={listing.id}

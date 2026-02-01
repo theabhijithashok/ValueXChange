@@ -43,3 +43,27 @@ export const resizeImage = (file, maxWidth = 800, quality = 0.7) => {
         reader.onerror = (error) => reject(error);
     });
 };
+
+/**
+ * Uploads an image to Firebase Storage.
+ * @param {File} file - The image file to upload.
+ * @param {string} path - The storage path (e.g., 'profile_photos/userId').
+ * @returns {Promise<string>} - A promise that resolves to the download URL.
+ */
+export const uploadImage = async (file, path) => {
+    const { getStorage, ref, uploadString, getDownloadURL } = await import('firebase/storage');
+    const storage = getStorage();
+
+    // Resize the image first to reduce storage size
+    const resizedBase64 = await resizeImage(file, 400, 0.8);
+
+    // Create a storage reference
+    const storageRef = ref(storage, path);
+
+    // Upload the base64 string
+    await uploadString(storageRef, resizedBase64, 'data_url');
+
+    // Get and return the download URL
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+};

@@ -17,6 +17,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
+import PublicProfile from './pages/PublicProfile';
 
 
 
@@ -46,6 +47,7 @@ const AppRoutes = () => {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/browse" element={<BrowseListings />} />
             <Route path="/listing/:id" element={<ProtectedRoute><ListingDetails /></ProtectedRoute>} />
+            <Route path="/user/:userId" element={<PublicProfile />} />
 
             {/* Protected Routes */}
             <Route

@@ -12,12 +12,46 @@ const ListingDetails = () => {
     const [error, setError] = useState('');
 
     // Chat State
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [conversationId, setConversationId] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
+
+    // Wishlist State
+    const [isInWishlist, setIsInWishlist] = useState(false);
+
+    // Check if listing is in wishlist
+    useEffect(() => {
+        if (user && listing) {
+            setIsInWishlist(user.wishlist?.includes(id) || false);
+        }
+    }, [user, listing, id]);
+
+    // Toggle Wishlist
+    const toggleWishlist = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        const currentWishlist = user.wishlist || [];
+        let newWishlist;
+
+        if (isInWishlist) {
+            // Remove from wishlist
+            newWishlist = currentWishlist.filter(itemId => itemId !== id);
+        } else {
+            // Add to wishlist
+            newWishlist = [...currentWishlist, id];
+        }
+
+        const result = await updateProfile({ wishlist: newWishlist });
+        if (result.success) {
+            setIsInWishlist(!isInWishlist);
+        }
+    };
 
     // Initialize Chat
     const handleStartChat = async () => {
@@ -168,7 +202,14 @@ const ListingDetails = () => {
                         <div className="mb-6">
                             <h1 className="text-3xl md:text-4xl font-bold text-black mb-2">{listing.title}</h1>
                             <div className="flex items-center text-gray-500 text-sm">
-                                <span>Listed by <span className="font-semibold text-black">{listing.owner?.username || listing.owner?.email || listing.userId || 'Unknown User'}</span></span>
+                                <span>Listed by{' '}
+                                    <span
+                                        onClick={() => navigate(`/user/${listing.owner?._id || listing.owner}`)}
+                                        className="font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                    >
+                                        {listing.owner?.username || listing.owner?.email || listing.userId || 'Unknown User'}
+                                    </span>
+                                </span>
                                 <span className="mx-2">•</span>
                                 <span>{new Date(listing.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString()}</span>
                                 {listing.location && (
@@ -210,6 +251,25 @@ const ListingDetails = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                 </svg>
                                 Chat
+                            </button>
+                            <button
+                                onClick={toggleWishlist}
+                                className="bg-white border-2 border-black text-black p-4 rounded-xl hover:bg-gray-50 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center"
+                                title={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                            >
+                                <svg
+                                    className="w-6 h-6"
+                                    fill={isInWishlist ? 'currentColor' : 'none'}
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                                    />
+                                </svg>
                             </button>
                         </div>
                     </div>

@@ -77,8 +77,16 @@ const GlobalChat = ({ isOpen, onClose }) => {
                                     onClick={() => setSelectedConversation(conv)}
                                     className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 text-left ${selectedConversation?.id === conv.id ? 'bg-gray-50' : ''}`}
                                 >
-                                    <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                                        {(conv.otherUser?.username || 'U').charAt(0).toUpperCase()}
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden">
+                                        {conv.otherUser?.photoURL ? (
+                                            <img
+                                                src={conv.otherUser.photoURL}
+                                                alt={conv.otherUser.username || 'User'}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <span>{(conv.otherUser?.username || 'U').charAt(0).toUpperCase()}</span>
+                                        )}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex justify-between items-baseline mb-1">
@@ -113,8 +121,16 @@ const GlobalChat = ({ isOpen, onClose }) => {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                                         </svg>
                                     </button>
-                                    <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white font-bold">
-                                        {(selectedConversation.otherUser?.username || 'U').charAt(0).toUpperCase()}
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
+                                        {selectedConversation.otherUser?.photoURL ? (
+                                            <img
+                                                src={selectedConversation.otherUser.photoURL}
+                                                alt={selectedConversation.otherUser.username || 'User'}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <span>{(selectedConversation.otherUser?.username || 'U').charAt(0).toUpperCase()}</span>
+                                        )}
                                     </div>
                                     <h3 className="font-bold text-black">{selectedConversation.otherUser?.username || 'Unknown User'}</h3>
                                 </div>
